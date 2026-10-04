@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ironmans 2026 Kilometerkampen</title>
+<meta name="description" content="Løbekonkurrence mellem Mathias, Ida og Anna fra 25. september til 31. december 2026. Taberen giver kage.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column — race bibs for the standings, a race chart, then the log. */
+:root{
+  --bg:#EEF0EC; --surface:#FFFFFF; --fg:#18201C; --muted:#5B665F; --line:#D3D9D4; --pin:#C4CBC6;
+  --accent:#C2462E; --r1:#C9472B; --r2:#1C7A63; --r3:#5B49C2; --cake:#F6E7C8; --cake-fg:#6B4310;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#111613; --surface:#1A211D; --fg:#E6ECE8; --muted:#97A39C; --line:#2C3631; --pin:#3A4540;
+  --accent:#E56C51; --r1:#EF7052; --r2:#3BB794; --r3:#9D8BF2; --cake:#3B2F1C; --cake-fg:#F2D39A; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.5;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.wrap{max-width:940px;margin:0 auto;padding:36px 20px 56px;display:grid;grid-template-columns:minmax(0,1fr);gap:40px}
+.wrap > *{min-width:0}
+@media (max-width:480px){.wrap{padding:24px 16px 40px;gap:32px}.bib{padding:22px 20px 18px}}
+.eyebrow{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(44px,9vw,76px);line-height:.95;letter-spacing:-.01em;margin:6px 0 12px;text-wrap:balance}
+h1 .pre{display:block;font-size:.42em;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 14px}
+.meta{color:var(--muted);margin:0;display:flex;flex-wrap:wrap;gap:4px 18px;font-variant-numeric:tabular-nums}
+.meta b{color:var(--fg);font-weight:600}
+.track{height:6px;background:var(--line);border-radius:3px;margin-top:16px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--fg);border-radius:3px}
+
+.stakes{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;justify-content:space-between;background:var(--cake);color:var(--cake-fg);border-radius:8px;padding:14px 18px}
+.stakes p{margin:0}
+.stakes strong{font-family:var(--display);font-size:20px;letter-spacing:.03em}
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.toggle button{font:600 14px var(--body);border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
+.toggle button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.toggle button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.bar-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:16px}
+.bar-row h2{margin:0}
+
+.bibs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:720px){.bibs{grid-template-columns:1fr}}
+.bib{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:26px 24px 22px;display:grid;gap:4px;min-width:0;align-content:start}
+.pin{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--bg);border:1px solid var(--pin)}
+.pin.a{top:10px;left:10px}.pin.b{top:10px;right:10px}.pin.c{bottom:10px;left:10px}.pin.d{bottom:10px;right:10px}
+.bib-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.rank{font-family:var(--display);font-weight:700;font-size:20px;color:var(--c)}
+.name{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.06em;text-transform:uppercase}
+.km{font-family:var(--display);font-weight:700;font-size:clamp(56px,8.5vw,80px);line-height:1;color:var(--c);font-variant-numeric:tabular-nums;margin-top:6px}
+.km small{font-size:.32em;font-weight:600;color:var(--muted);margin-left:6px;letter-spacing:.04em}
+.gap{font-weight:600;font-variant-numeric:tabular-nums}
+.runs{font-size:15px;font-variant-numeric:tabular-nums;margin-top:8px}
+.runs b{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:.02em}
+.sub{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;display:grid;gap:2px;margin-top:6px}
+.bar{height:8px;border-radius:4px;background:var(--line);margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c);border-radius:4px}
+.cake{justify-self:start;margin-top:8px;background:var(--cake);color:var(--cake-fg);font-weight:600;font-size:13px;padding:3px 10px;border-radius:999px}
+
+.chart-box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 12px 10px;overflow-x:auto}
+.chart-box svg{display:block;width:100%;min-width:520px;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:14px;margin:12px 4px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:16px;height:3px;border-radius:2px;background:var(--c)}
+.legend .dash{background:repeating-linear-gradient(90deg,var(--muted) 0 4px,transparent 4px 7px)}
+
+.table-box{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:10px 14px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+tbody tr:last-child td{border-bottom:0}
+th{font-family:var(--display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:14px;color:var(--muted)}
+td .d{color:var(--muted);font-size:13px;margin-left:6px}
+.msg{color:var(--muted)}
+</style>
+</head>
+<body>
+<main id="app"><div class="wrap"><p class="msg">Henter stillingen…</p></div></main>
+<script>
+(function(){
+var S, start, endT, totalDays, DAY = 864e5;
+var mode = 'comp';
+try { if (localStorage.getItem('kmk-mode') === 'year') mode = 'year'; } catch (_) {}
+
+function fmt(n, d){ d = d == null ? 1 : d; return n.toLocaleString('da-DK', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function when(t){ return new Date(t).toLocaleString('da-DK', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}); }
+function km(snap, r){ return Math.max(0, snap.v[r.k] - r.base); }
+function val(snap, r){ return mode === 'year' ? snap.v[r.k] : km(snap, r); }
+function startVal(r){ return mode === 'year' ? r.base : 0; }
+function runs(snap, r){
+  if (!snap || !snap.r || !isFinite(snap.r[r.k])) return null;
+  return mode === 'year' ? snap.r[r.k] : Math.max(0, snap.r[r.k] - r.baseRuns);
+}
+function runsTxt(n){ return n === 1 ? '1 løb' : n + ' løb'; }
+function last(){ return S.snaps[S.snaps.length - 1]; }
+
+function standings(m){
+  var keep = mode; mode = m || mode;
+  var s = last();
+  var el = s ? Math.max((s.t - start) / DAY, 0.5) : 1;
+  var prev = S.snaps.length > 1 ? S.snaps[S.snaps.length - 2] : null;
+  var out = S.runners.map(function(r){
+    var comp = s ? km(s, r) : 0, rate = comp / el;
+    return {r:r, v: s ? val(s, r) : startVal(r), n: runs(s, r), rate:rate, proj: startVal(r) + rate * totalDays, delta: s && prev ? km(s, r) - km(prev, r) : null};
+  }).sort(function(a, b){ return b.v - a.v; });
+  mode = keep;
+  return out;
+}
+
+function bibs(st){
+  var lead = st[0].v || 1, c = standings('comp');
+  var cakeK = c[c.length - 1].r.k;
+  return st.map(function(x, i){
+    var gap = i === 0
+      ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v) + ' km' : 'Fører')
+      : fmt(st[0].v - x.v) + ' km efter førstepladsen';
+    return '<article class="bib" style="--c:var(' + x.r.c + ')">' +
+      '<span class="pin a"></span><span class="pin b"></span><span class="pin c"></span><span class="pin d"></span>' +
+      '<div class="bib-top"><span class="name">' + esc(x.r.name) + '</span><span class="rank">' + (i + 1) + '. plads</span></div>' +
+      '<div class="km">' + fmt(x.v) + '<small>KM</small></div>' +
+      '<div class="gap">' + gap + '</div>' +
+      '<div class="bar"><i style="width:' + Math.max(2, x.v / lead * 100).toFixed(1) + '%"></i></div>' +
+      (x.n != null ? '<div class="runs"><b>' + runsTxt(x.n) + '</b>' + (x.n > 0 ? ' · ' + fmt(x.v / x.n) + ' km i snit pr. løb' : '') + '</div>' : '') +
+      '<div class="sub"><span>' + fmt(x.rate, 2) + ' km pr. dag siden 25/9</span>' +
+      '<span>Prognose 31/12: ' + fmt(x.proj, 0) + ' km</span>' +
+      (x.delta != null ? '<span>Siden sidste opdatering: +' + fmt(x.delta) + ' km</span>' : '') +
+      '</div>' + (x.r.k === cakeK && last() ? '<span class="cake">🍰 Skal bage kage lige nu</span>' : '') +
+      '</article>';
+  }).join('');
+}
+
+function stakes(){
+  var c = standings('comp'), n = c.length;
+  if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage</strong></p></div>';
+  var lo = c[n - 1], up = c[n - 2];
+  var dayNo = Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
+  var msg = Date.now() > endT
+    ? esc(lo.r.name) + ' tabte og skylder kage til ' + c.slice(0, n - 1).map(function(x){ return esc(x.r.name); }).join(' og ') + '.'
+    : 'Lige nu er det <b>' + esc(lo.r.name) + '</b>, der skal bage. ' + fmt(up.v - lo.v) + ' km op til ' + esc(up.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
+  return '<div class="stakes"><p><strong>Taberen giver kage</strong></p><p>' + msg + '</p></div>';
+}
+
+function niceStep(span){
+  var steps = [10, 20, 25, 50, 100, 200, 250, 500];
+  for (var i = 0; i < steps.length; i++) if (span / steps[i] <= 5) return steps[i];
+  return 1000;
+}
+
+function chart(st){
+  var W = 680, H = 290, L = 50, Rm = 108, T = 14, B = 32;
+  var hi = 0, lo = Infinity;
+  st.forEach(function(x){ hi = Math.max(hi, x.proj, x.v); lo = Math.min(lo, startVal(x.r)); });
+  if (mode === 'comp') lo = 0;
+  var step = niceStep(Math.max(hi - lo, 20) * 1.05);
+  var ymin = Math.floor(lo / step) * step;
+  var ymax = Math.ceil((ymin + Math.max(hi - ymin, 20) * 1.05) / step) * step;
+  function X(t){ return L + (t - start) / (endT - start) * (W - L - Rm); }
+  function Y(v){ return T + (1 - (v - ymin) / (ymax - ymin)) * (H - T - B); }
+  var g = '';
+  for (var v = ymin; v <= ymax; v += step) {
+    g += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--line)" stroke-width="1"/>' +
+         '<text x="' + (L - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="12" fill="var(--muted)">' + fmt(v, 0) + '</text>';
+  }
+  var ticks = [[start, '25. sep'], [new Date('2026-10-01T00:00:00').getTime(), '1. okt'], [new Date('2026-11-01T00:00:00').getTime(), '1. nov'], [new Date('2026-12-01T00:00:00').getTime(), '1. dec'], [endT, '31. dec']];
+  ticks.forEach(function(k, i){
+    var x = X(k[0]);
+    g += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="' + (i === 0 || i === 4 ? '0' : '2 4') + '"/>' +
+         '<text x="' + x + '" y="' + (H - B + 18) + '" text-anchor="' + (i === 0 ? 'start' : 'middle') + '" font-size="12" fill="var(--muted)">' + k[1] + '</text>';
+  });
+  var now = Date.now();
+  if (now > start && now < endT) {
+    g += '<line x1="' + X(now) + '" x2="' + X(now) + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--muted)" stroke-width="1"/>' +
+         '<text x="' + (X(now) + 4) + '" y="' + (T + 10) + '" font-size="11" fill="var(--muted)">i dag</text>';
+  }
+  var labels = [], s = last();
+  st.slice().reverse().forEach(function(x){
+    var r = x.r, col = 'var(' + r.c + ')';
+    var pts = [[X(start), Y(startVal(r))]].concat(S.snaps.map(function(sn){ return [X(sn.t), Y(val(sn, r))]; }));
+    var d = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+    var lp = pts[pts.length - 1];
+    if (s) g += '<line x1="' + lp[0] + '" y1="' + lp[1] + '" x2="' + X(endT) + '" y2="' + Y(x.proj) + '" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>';
+    g += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' +
+         '<circle cx="' + lp[0] + '" cy="' + lp[1] + '" r="4.5" fill="' + col + '" stroke="var(--surface)" stroke-width="2"/>';
+    labels.push({y:Y(x.proj), text:r.name + ' ' + fmt(x.proj, 0), col:col});
+  });
+  labels.sort(function(a, b){ return a.y - b.y; });
+  for (var i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
+  labels.forEach(function(l){
+    g += '<text x="' + (X(endT) + 8) + '" y="' + (l.y + 4) + '" font-size="12" font-weight="600" fill="' + l.col + '">' + esc(l.text) + '</text>';
+  });
+  var aria = mode === 'year' ? 'Årets samlede kilometer for hver løber' : 'Kilometer siden 25. september for hver løber';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + aria + ', med prognose frem til 31. december">' + g + '</svg>';
+}
+
+function history(){
+  var rows = S.snaps.slice().reverse().map(function(sn, i, arr){
+    var prev = arr[i + 1];
+    return '<tr><td>' + when(sn.t) + '</td>' + S.runners.map(function(r){
+      var d = prev ? km(sn, r) - km(prev, r) : null, n = runs(sn, r);
+      return '<td>' + fmt(val(sn, r)) + ' km' + (n != null ? '<span class="d">' + runsTxt(n) + '</span>' : '') + (d != null ? '<span class="d">+' + fmt(d) + '</span>' : '') + '</td>';
+    }).join('') + '</tr>';
+  });
+  rows.push('<tr><td>25. sep (start)</td>' + S.runners.map(function(r){ return '<td>' + fmt(startVal(r), mode === 'year' ? 0 : 1) + ' km<span class="d">' + runsTxt(mode === 'year' ? r.baseRuns : 0) + '</span></td>'; }).join('') + '</tr>');
+  return '<div class="table-box"><table><thead><tr><th>Opdateret</th>' + S.runners.map(function(r){ return '<th>' + esc(r.name) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+}
+
+function toggle(){
+  return '<div class="toggle" role="group" aria-label="Vis kilometer">' +
+    '<button type="button" data-mode="comp" aria-pressed="' + (mode === 'comp') + '">Siden 25/9</button>' +
+    '<button type="button" data-mode="year" aria-pressed="' + (mode === 'year') + '">Hele 2026</button></div>';
+}
+
+function render(){
+  var st = standings(), s = last(), now = Date.now();
+  var dayNo = Math.min(totalDays, Math.max(1, Math.floor((now - start) / DAY) + 1));
+  var app = document.getElementById('app');
+  app.innerHTML = '<div class="wrap">' +
+    '<header><p class="eyebrow">Løb · 25. september – 31. december 2026</p><h1><span class="pre">Ironmans 2026</span>Kilometerkampen</h1>' +
+    '<p class="meta"><span>Dag <b>' + dayNo + '</b> af ' + totalDays + '</span><span><b>' + Math.max(0, totalDays - dayNo) + '</b> dage tilbage</span>' +
+    (s ? '<span>Opdateret ' + when(s.t) + '</span>' : '<span>Ingen data endnu</span>') + '</p>' +
+    '<div class="track" aria-hidden="true"><i style="width:' + (dayNo / totalDays * 100).toFixed(1) + '%"></i></div></header>' +
+    stakes() +
+    '<section aria-label="Stilling"><div class="bar-row"><h2>' + (mode === 'year' ? 'Hele 2026' : 'Stillingen') + '</h2>' + toggle() + '</div>' +
+    '<div class="bibs">' + bibs(st) + '</div></section>' +
+    '<section><h2>Løbet indtil nu</h2><div class="chart-box">' + chart(st) +
+    '<div class="legend">' + S.runners.map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
+    '<span><i class="dash"></i>Prognose til 31. dec</span></div></div></section>' +
+    '<section><h2>Historik</h2>' + history() + '</section>' +
+    '</div>';
+  [].forEach.call(app.querySelectorAll('.toggle button'), function(b){
+    b.addEventListener('click', function(){
+      mode = b.getAttribute('data-mode');
+      try { localStorage.setItem('kmk-mode', mode); } catch (_) {}
+      render();
+      var f = document.querySelector('.toggle button[data-mode="' + mode + '"]'); if (f) f.focus();
+    });
+  });
+}
+
+fetch('data.json', {cache: 'no-store'}).then(function(r){
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}).then(function(data){
+  S = data;
+  start = new Date(S.start + 'T00:00:00').getTime();
+  endT = new Date(S.end + 'T23:59:59').getTime();
+  totalDays = Math.round((new Date(S.end + 'T00:00:00').getTime() - start) / DAY) + 1;
+  S.snaps.sort(function(a, b){ return a.t - b.t; });
+  render();
+}).catch(function(){
+  document.getElementById('app').innerHTML = '<div class="wrap"><p class="msg">Stillingen kunne ikke hentes. Prøv at genindlæse siden.</p></div>';
+});
+})();
+</script>
+</body>
+</html>

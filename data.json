@@ -1,0 +1,12 @@
+{
+  "start": "2026-09-25",
+  "end": "2026-12-31",
+  "runners": [
+    {"k": "mathias", "name": "Mathias", "athleteId": "122226265", "base": 1272, "baseRuns": 98, "c": "--r1"},
+    {"k": "ida", "name": "Ida", "athleteId": "132593466", "base": 1252, "baseRuns": 109, "c": "--r2"},
+    {"k": "anna", "name": "Anna", "athleteId": "84447586", "base": 1010, "baseRuns": 91, "c": "--r3"}
+  ],
+  "snaps": [
+    {"t": 1791122642882, "v": {"mathias": 1338.4, "ida": 1308.8, "anna": 1060.3}, "r": {"mathias": 103, "ida": 113, "anna": 94}}
+  ]
+}
