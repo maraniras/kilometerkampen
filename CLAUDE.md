@@ -1,4 +1,4 @@
-# Ironmans 2026 Kilometerkampen
+# Ironmans 2026 Kagekilometerkampen
 
 A running competition between Mathias, Ida and Anna: who runs the most km from 25 Sep to 31 Dec 2026. The loser bakes cake for the others.
 
@@ -12,7 +12,7 @@ Competition km = **the sum of each runner's individual runs since 25 Sep** (`run
 
 `base`/`baseRuns` are the rounded 2026 totals on 25 Sep from the Strava app. They're only a fallback and a sanity check. Never change them unless the user asks.
 
-## Updating the standings ("opdater Kilometerkampen")
+## Updating the standings ("opdater Kilometerkampen" / "opdater Kagekilometerkampen")
 
 1. **Read Strava** with Claude in Chrome. The user must be logged in to Strava in Chrome.
    - Open `https://www.strava.com/dashboard` in a tab.

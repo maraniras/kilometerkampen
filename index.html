@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Ironmans 2026 Kilometerkampen</title>
+<title>Ironmans 2026 Kagekilometerkampen</title>
 <meta name="description" content="Løbekonkurrence mellem Mathias, Ida og Anna fra 25. september til 31. december 2026. Taberen giver kage.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
@@ -26,7 +26,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-
 .wrap > *{min-width:0}
 @media (max-width:480px){.wrap{padding:24px 16px 40px;gap:32px}.bib{padding:22px 20px 18px}}
 .eyebrow{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0}
-h1{font-family:var(--display);font-weight:700;font-size:clamp(44px,9vw,76px);line-height:.95;letter-spacing:-.01em;margin:6px 0 12px;text-wrap:balance}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(44px,9vw,76px);line-height:.95;letter-spacing:-.01em;margin:6px 0 12px;text-wrap:balance;hyphens:manual;overflow-wrap:break-word}
 h1 .pre{display:block;font-size:.42em;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 14px}
 .meta{color:var(--muted);margin:0;display:flex;flex-wrap:wrap;gap:4px 18px;font-variant-numeric:tabular-nums}
@@ -280,7 +280,7 @@ function render(){
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((now - start) / DAY) + 1));
   var app = document.getElementById('app');
   app.innerHTML = '<div class="wrap">' +
-    '<header><p class="eyebrow">Løb · 25. september – 31. december 2026</p><h1><span class="pre">Ironmans 2026</span>Kilometerkampen</h1>' +
+    '<header><p class="eyebrow">Løb · 25. september – 31. december 2026</p><h1><span class="pre">Ironmans 2026</span>Kage&shy;kilometer&shy;kampen</h1>' +
     '<p class="meta"><span>Dag <b>' + dayNo + '</b> af ' + totalDays + '</span><span><b>' + Math.max(0, totalDays - dayNo) + '</b> dage tilbage</span>' +
     (s ? '<span>Opdateret ' + when(s.t) + '</span>' : '<span>Ingen data endnu</span>') + '</p>' +
     '<div class="track" aria-hidden="true"><i style="width:' + (dayNo / totalDays * 100).toFixed(1) + '%"></i></div></header>' +
