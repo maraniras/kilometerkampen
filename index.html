@@ -137,13 +137,13 @@ function bibs(st){
 
 function stakes(){
   var c = standings('comp'), n = c.length;
-  if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage</strong></p></div>';
+  if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p></div>';
   var lo = c[n - 1], up = c[n - 2];
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
   var msg = Date.now() > endT
     ? esc(lo.r.name) + ' tabte og skylder kage til ' + c.slice(0, n - 1).map(function(x){ return esc(x.r.name); }).join(' og ') + '.'
     : 'Lige nu er det <b>' + esc(lo.r.name) + '</b>, der skal bage. ' + fmt(up.v - lo.v) + ' km op til ' + esc(up.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
-  return '<div class="stakes"><p><strong>Taberen giver kage</strong></p><p>' + msg + '</p></div>';
+  return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p><p>' + msg + '</p></div>';
 }
 
 function niceStep(span){
