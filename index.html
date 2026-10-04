@@ -77,6 +77,25 @@ tbody tr:last-child td{border-bottom:0}
 th{font-family:var(--display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:14px;color:var(--muted)}
 td .d{color:var(--muted);font-size:13px;margin-left:6px}
 .msg{color:var(--muted)}
+
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.filters button{font:600 14px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:6px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.filters button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.filters button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.runlist{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.runlist li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.runlist li:last-child{border-bottom:0}
+.runlist .who{grid-row:span 2;display:flex;align-items:center}
+.runlist .who .dot{width:12px;height:12px}
+.runlist .title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.runlist .title a{color:inherit;text-decoration:none}
+.runlist .title a:hover{text-decoration:underline}
+.runlist .info{grid-column:2;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums}
+.runlist .rkm{grid-row:span 2;grid-column:3;font-family:var(--display);font-weight:700;font-size:26px;color:var(--c);font-variant-numeric:tabular-nums;text-align:right;line-height:1}
+.runlist .rkm small{font-size:.5em;color:var(--muted);margin-left:3px}
+.nw{white-space:nowrap}
+.more{margin-top:10px;font:600 14px var(--body);background:none;border:0;color:var(--accent);cursor:pointer;padding:6px 0}
 </style>
 </head>
 <body>
@@ -210,6 +229,34 @@ function history(){
   return '<div class="table-box"><table><thead><tr><th>Opdateret</th>' + S.runners.map(function(r){ return '<th>' + esc(r.name) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 
+var runFilter = 'all', showAll = false, RUN_LIMIT = 15;
+
+function runList(){
+  var R = S.runs || {};
+  var all = [];
+  S.runners.forEach(function(r){ (R[r.k] || []).forEach(function(a){ all.push({r:r, a:a}); }); });
+  if (!all.length) return '';
+  all.sort(function(x, y){ return x.a.d < y.a.d ? 1 : -1; });
+  var list = runFilter === 'all' ? all : all.filter(function(x){ return x.r.k === runFilter; });
+  var shown = showAll ? list : list.slice(0, RUN_LIMIT);
+  var chips = '<div class="filters" role="group" aria-label="Vis løb for">' +
+    '<button type="button" data-run="all" aria-pressed="' + (runFilter === 'all') + '">Alle</button>' +
+    S.runners.map(function(r){
+      var n = (R[r.k] || []).length;
+      return '<button type="button" data-run="' + r.k + '" aria-pressed="' + (runFilter === r.k) + '" style="--c:var(' + r.c + ')"><span class="dot"></span>' + esc(r.name) + ' · ' + n + '</button>';
+    }).join('') + '</div>';
+  var items = shown.map(function(x){
+    var a = x.a, day = new Date(a.d).toLocaleDateString('da-DK', {weekday:'short', day:'numeric', month:'short'});
+    var time = new Date(a.d).toLocaleTimeString('da-DK', {hour:'2-digit', minute:'2-digit'});
+    return '<li style="--c:var(' + x.r.c + ')"><span class="who" aria-hidden="true"><span class="dot"></span></span>' +
+      '<span class="title"><a href="https://www.strava.com/activities/' + encodeURIComponent(a.id) + '" target="_blank" rel="noopener">' + esc(a.name || 'Løb') + '</a></span>' +
+      '<span class="rkm">' + fmt(a.km, 2) + '<small>km</small></span>' +
+      '<span class="info">' + esc(x.r.name) + ' · ' + day + ' kl. ' + time + (a.pace ? ' · <span class="nw">' + esc(a.pace) + '</span>' : '') + '</span></li>';
+  }).join('');
+  var more = list.length > RUN_LIMIT ? '<button type="button" class="more" id="more-runs">' + (showAll ? 'Vis færre' : 'Vis alle ' + list.length + ' løb') + '</button>' : '';
+  return '<section><h2>Løbene</h2>' + chips + '<ul class="runlist">' + items + '</ul>' + more + '</section>';
+}
+
 function toggle(){
   return '<div class="toggle" role="group" aria-label="Vis kilometer">' +
     '<button type="button" data-mode="comp" aria-pressed="' + (mode === 'comp') + '">Siden 25/9</button>' +
@@ -231,8 +278,18 @@ function render(){
     '<section><h2>Løbet indtil nu</h2><div class="chart-box">' + chart(st) +
     '<div class="legend">' + S.runners.map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
     '<span><i class="dash"></i>Prognose til 31. dec</span></div></div></section>' +
+    runList() +
     '<section><h2>Historik</h2>' + history() + '</section>' +
     '</div>';
+  [].forEach.call(app.querySelectorAll('.filters button'), function(b){
+    b.addEventListener('click', function(){
+      runFilter = b.getAttribute('data-run'); showAll = false;
+      render();
+      var f = document.querySelector('.filters button[data-run="' + runFilter + '"]'); if (f) f.focus();
+    });
+  });
+  var mb = document.getElementById('more-runs');
+  if (mb) mb.addEventListener('click', function(){ showAll = !showAll; render(); });
   [].forEach.call(app.querySelectorAll('.toggle button'), function(b){
     b.addEventListener('click', function(){
       mode = b.getAttribute('data-mode');

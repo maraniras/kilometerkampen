@@ -14,17 +14,21 @@ Competition km = Strava 2026 year-to-date running distance − `base` (each runn
 
 1. **Read Strava** with Claude in Chrome. The user must be logged in to Strava in Chrome.
    - Open `https://www.strava.com/dashboard` in a tab.
-   - Run the contents of `scripts/strava-snapshot.js` in that tab with the javascript tool. It returns `{"t":..., "v":{...}, "r":{...}}`.
+   - Run the contents of `scripts/strava-snapshot.js` in that tab with the javascript tool. It returns `{"t":..., "v":{...}, "r":{...}, "runs":{...}}`. If the output is too long to come back in one piece, store it on `window` and read `runs` one runner at a time.
    - If it fails (Strava changed something), open each profile, `https://www.strava.com/athletes/<athleteId>` (ids in `data.json`), and read the "2026" block in the running stats sidebar (Aktiviteter = runs, Distance = km). Note: on other people's profiles the sidebar compares two columns; the **first** column is the profile owner, the second is the logged-in user.
 2. **Sanity check** before writing:
    - every km value ≥ that runner's `base`;
    - compared with the latest snapshot, values should normally be equal or higher. If any value went down, or jumped by more than ~150 km, stop and ask the user.
-3. **Write `data.json`:** append the snapshot to `snaps`. If the latest snapshot is from the same calendar day (Europe/Copenhagen), replace it instead of appending. Keep `snaps` sorted by `t`. Don't touch anything else.
+   - the number of runs in `runs[k]` should equal `r[k] − baseRuns`. If it doesn't (e.g. a private run that isn't in the feed), still save, but tell the user which runner is off and by how many.
+3. **Write `data.json`:**
+   - Append `{t, v, r}` to `snaps`. If the latest snapshot is from the same calendar day (Europe/Copenhagen), replace it instead of appending. Keep `snaps` sorted by `t`.
+   - Merge `runs`: for each runner, combine the stored list with the new one by `id` (new data wins), keep only runs on/after 25 Sep, sort by date `d`. Never drop a stored run just because it's missing from a new fetch; ask the user if one seems to have been deleted.
+   - Don't touch anything else.
 4. **Publish:** `git pull`, then commit `data.json` with a message like `Opdatering 12. okt` and `git push`. GitHub Pages updates the site in about a minute.
 5. **Report** to the user in Danish: standings in km since 25/9 (with runs), gaps, who is currently baking cake, and the site link.
 
 ## Files
 
 - `index.html`: the page (Danish, mobile friendly, light/dark).
-- `data.json`: competition settings and the history of snapshots.
-- `scripts/strava-snapshot.js`: snippet that reads all three totals from Strava.
+- `data.json`: competition settings, the history of snapshots (`snaps`) and every individual run since 25 Sep (`runs`, shown in the "Løbene" list).
+- `scripts/strava-snapshot.js`: snippet that reads all three totals and every run since 25 Sep from Strava.
