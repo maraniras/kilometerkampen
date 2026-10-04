@@ -109,13 +109,17 @@ try { if (localStorage.getItem('kmk-mode') === 'year') mode = 'year'; } catch (_
 function fmt(n, d){ d = d == null ? 1 : d; return n.toLocaleString('da-DK', {minimumFractionDigits:d, maximumFractionDigits:d}); }
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function when(t){ return new Date(t).toLocaleString('da-DK', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}); }
-function km(snap, r){ return Math.max(0, snap.v[r.k] - r.base); }
-function val(snap, r){ return mode === 'year' ? snap.v[r.k] : km(snap, r); }
-function startVal(r){ return mode === 'year' ? r.base : 0; }
-function runs(snap, r){
-  if (!snap || !snap.r || !isFinite(snap.r[r.k])) return null;
-  return mode === 'year' ? snap.r[r.k] : Math.max(0, snap.r[r.k] - r.baseRuns);
-}
+// Competition score = sum of the individual runs since 25/9 (S.runs).
+// Year mode adds each runner's exact 2026 total on 25/9: latest Strava YTD minus the runs counted up to that snapshot.
+function runsOf(r){ return (S.runs && S.runs[r.k]) || []; }
+function sumAt(r, t){ var s = 0; runsOf(r).forEach(function(a){ if (new Date(a.d).getTime() <= t) s += a.km; }); return Math.round(s * 100) / 100; }
+function countAt(r, t){ return runsOf(r).filter(function(a){ return new Date(a.d).getTime() <= t; }).length; }
+function offKm(r){ var s = last(); return mode !== 'year' ? 0 : (s ? s.v[r.k] - sumAt(r, s.t) : r.base); }
+function offRuns(r){ var s = last(); return mode !== 'year' ? 0 : (s && s.r ? s.r[r.k] - countAt(r, s.t) : r.baseRuns); }
+function km(snap, r){ return sumAt(r, snap.t); }
+function val(snap, r){ return km(snap, r) + offKm(r); }
+function startVal(r){ return offKm(r); }
+function runs(snap, r){ return snap ? countAt(r, snap.t) + offRuns(r) : null; }
 function runsTxt(n){ return n === 1 ? '1 løb' : n + ' løb'; }
 function last(){ return S.snaps[S.snaps.length - 1]; }
 
@@ -133,16 +137,17 @@ function standings(m){
 }
 
 function bibs(st){
+  var dec = mode === 'year' ? 1 : 2;
   var lead = st[0].v || 1, c = standings('comp');
   var cakeK = c[c.length - 1].r.k;
   return st.map(function(x, i){
     var gap = i === 0
-      ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v) + ' km' : 'Fører')
-      : fmt(st[0].v - x.v) + ' km efter førstepladsen';
+      ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v, dec) + ' km' : 'Fører')
+      : fmt(st[0].v - x.v, dec) + ' km efter førstepladsen';
     return '<article class="bib" style="--c:var(' + x.r.c + ')">' +
       '<span class="pin a"></span><span class="pin b"></span><span class="pin c"></span><span class="pin d"></span>' +
       '<div class="bib-top"><span class="name">' + esc(x.r.name) + '</span><span class="rank">' + (i + 1) + '. plads</span></div>' +
-      '<div class="km">' + fmt(x.v) + '<small>KM</small></div>' +
+      '<div class="km">' + fmt(x.v, dec) + '<small>KM</small></div>' +
       '<div class="gap">' + gap + '</div>' +
       '<div class="bar"><i style="width:' + Math.max(2, x.v / lead * 100).toFixed(1) + '%"></i></div>' +
       (x.n != null ? '<div class="runs"><b>' + runsTxt(x.n) + '</b>' + (x.n > 0 ? ' · ' + fmt(x.v / x.n) + ' km i snit pr. løb' : '') + '</div>' : '') +
@@ -161,7 +166,7 @@ function stakes(){
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
   var msg = Date.now() > endT
     ? esc(lo.r.name) + ' tabte og skylder kage til ' + c.slice(0, n - 1).map(function(x){ return esc(x.r.name); }).join(' og ') + '.'
-    : 'Lige nu er det <b>' + esc(lo.r.name) + '</b>, der skal bage. ' + fmt(up.v - lo.v) + ' km op til ' + esc(up.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
+    : 'Lige nu er det <b>' + esc(lo.r.name) + '</b>, der skal bage. ' + fmt(up.v - lo.v, 2) + ' km op til ' + esc(up.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
   return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p><p>' + msg + '</p></div>';
 }
 
@@ -190,7 +195,7 @@ function chart(st){
   ticks.forEach(function(k, i){
     var x = X(k[0]);
     g += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="' + (i === 0 || i === 4 ? '0' : '2 4') + '"/>' +
-         '<text x="' + x + '" y="' + (H - B + 18) + '" text-anchor="' + (i === 0 ? 'start' : 'middle') + '" font-size="12" fill="var(--muted)">' + k[1] + '</text>';
+         (i > 0 && i < 4 && x - X(start) < 48 ? '' : '<text x="' + x + '" y="' + (H - B + 18) + '" text-anchor="' + (i === 0 ? 'start' : 'middle') + '" font-size="12" fill="var(--muted)">' + k[1] + '</text>');
   });
   var now = Date.now();
   if (now > start && now < endT) {
@@ -200,7 +205,14 @@ function chart(st){
   var labels = [], s = last();
   st.slice().reverse().forEach(function(x){
     var r = x.r, col = 'var(' + r.c + ')';
-    var pts = [[X(start), Y(startVal(r))]].concat(S.snaps.map(function(sn){ return [X(sn.t), Y(val(sn, r))]; }));
+    // Step line: flat between runs, jumps up at each run.
+    var off = startVal(r), cum = 0, pts = [[X(start), Y(off)]];
+    runsOf(r).slice().sort(function(a, b){ return a.d < b.d ? -1 : 1; }).forEach(function(a){
+      var t = new Date(a.d).getTime();
+      if (s && t > s.t) return;
+      pts.push([X(t), Y(off + cum)]); cum += a.km; pts.push([X(t), Y(off + cum)]);
+    });
+    if (s) pts.push([X(s.t), Y(x.v)]);
     var d = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
     var lp = pts[pts.length - 1];
     if (s) g += '<line x1="' + lp[0] + '" y1="' + lp[1] + '" x2="' + X(endT) + '" y2="' + Y(x.proj) + '" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>';
@@ -225,7 +237,7 @@ function history(){
       return '<td>' + fmt(val(sn, r)) + ' km' + (n != null ? '<span class="d">' + runsTxt(n) + '</span>' : '') + (d != null ? '<span class="d">+' + fmt(d) + '</span>' : '') + '</td>';
     }).join('') + '</tr>';
   });
-  rows.push('<tr><td>25. sep (start)</td>' + S.runners.map(function(r){ return '<td>' + fmt(startVal(r), mode === 'year' ? 0 : 1) + ' km<span class="d">' + runsTxt(mode === 'year' ? r.baseRuns : 0) + '</span></td>'; }).join('') + '</tr>');
+  rows.push('<tr><td>25. sep (start)</td>' + S.runners.map(function(r){ return '<td>' + fmt(startVal(r)) + ' km<span class="d">' + runsTxt(offRuns(r)) + '</span></td>'; }).join('') + '</tr>');
   return '<div class="table-box"><table><thead><tr><th>Opdateret</th>' + S.runners.map(function(r){ return '<th>' + esc(r.name) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 

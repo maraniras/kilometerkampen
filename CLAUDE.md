@@ -8,7 +8,9 @@ A running competition between Mathias, Ida and Anna: who runs the most km from 2
 
 ## How the score works
 
-Competition km = Strava 2026 year-to-date running distance − `base` (each runner's 2026 YTD km on 25 Sep, from the Strava app, rounded to whole km). Runs work the same way with `baseRuns`. Only runs count. Never change `base`/`baseRuns` unless the user asks.
+Competition km = **the sum of each runner's individual runs since 25 Sep** (`runs` in `data.json`). Number of runs = how many runs are in that list. Only activities of type run count. The page computes everything from `runs`; snapshots (`snaps`) only mark when updates happened and give the 2026 year totals for the "Hele 2026" view.
+
+`base`/`baseRuns` are the rounded 2026 totals on 25 Sep from the Strava app. They're only a fallback and a sanity check. Never change them unless the user asks.
 
 ## Updating the standings ("opdater Kilometerkampen")
 
