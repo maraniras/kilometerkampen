@@ -46,13 +46,14 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04e
 
 .bibs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 @media (max-width:720px){.bibs{grid-template-columns:1fr}}
-.bib{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:26px 24px 22px;display:grid;gap:4px;min-width:0;align-content:start}
+.bib{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:26px 24px 22px;display:grid;gap:4px;min-width:0;align-content:start;container-type:inline-size}
 .pin{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--bg);border:1px solid var(--pin)}
 .pin.a{top:10px;left:10px}.pin.b{top:10px;right:10px}.pin.c{bottom:10px;left:10px}.pin.d{bottom:10px;right:10px}
-.bib-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.bib-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 12px}
 .rank{font-family:var(--display);font-weight:700;font-size:20px;color:var(--c)}
 .name{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.06em;text-transform:uppercase}
-.km{font-family:var(--display);font-weight:700;font-size:clamp(56px,8.5vw,80px);line-height:1;color:var(--c);font-variant-numeric:tabular-nums;margin-top:6px}
+/* Shrinks with the card so long year totals (1.338,4) still fit; --n = number of characters. */
+.km{font-family:var(--display);font-weight:700;font-size:min(80px,calc(100cqi / (var(--n,6) * .45 + .6)));white-space:nowrap;line-height:1;color:var(--c);font-variant-numeric:tabular-nums;margin-top:6px}
 .km small{font-size:.32em;font-weight:600;color:var(--muted);margin-left:6px;letter-spacing:.04em}
 .gap{font-weight:600;font-variant-numeric:tabular-nums}
 .runs{font-size:15px;font-variant-numeric:tabular-nums;margin-top:8px}
@@ -147,7 +148,7 @@ function bibs(st){
     return '<article class="bib" style="--c:var(' + x.r.c + ')">' +
       '<span class="pin a"></span><span class="pin b"></span><span class="pin c"></span><span class="pin d"></span>' +
       '<div class="bib-top"><span class="name">' + esc(x.r.name) + '</span><span class="rank">' + (i + 1) + '. plads</span></div>' +
-      '<div class="km">' + fmt(x.v, dec) + '<small>KM</small></div>' +
+      '<div class="km" style="--n:' + fmt(x.v, dec).length + '">' + fmt(x.v, dec) + '<small>KM</small></div>' +
       '<div class="gap">' + gap + '</div>' +
       '<div class="bar"><i style="width:' + Math.max(2, x.v / lead * 100).toFixed(1) + '%"></i></div>' +
       (x.n != null ? '<div class="runs"><b>' + runsTxt(x.n) + '</b>' + (x.n > 0 ? ' · ' + fmt(x.v / x.n) + ' km i snit pr. løb' : '') + '</div>' : '') +
