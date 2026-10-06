@@ -106,6 +106,9 @@ td .d{color:var(--muted);font-size:13px;margin-left:6px}
 var S, start, endT, totalDays, DAY = 864e5;
 var mode = 'comp';
 try { if (localStorage.getItem('kmk-mode') === 'year') mode = 'year'; } catch (_) {}
+// Chart view: 'now' zooms in on 25/9 → today, 'proj' shows the whole period with projections to 31/12.
+var view = 'now';
+try { if (localStorage.getItem('kmk-view') === 'proj') view = 'proj'; } catch (_) {}
 
 function fmt(n, d){ d = d == null ? 1 : d; return n.toLocaleString('da-DK', {minimumFractionDigits:d, maximumFractionDigits:d}); }
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
@@ -177,57 +180,73 @@ function niceStep(span){
   return 1000;
 }
 
+function dayLabel(t){ return new Date(t).toLocaleDateString('da-DK', {day:'numeric', month:'short'}).replace(/\.$/, ''); }
+
 function chart(st){
   var W = 680, H = 290, L = 50, Rm = 108, T = 14, B = 32;
+  var zoom = view === 'now', s = last(), now = Date.now();
+  var dec = mode === 'year' ? 1 : 2;
+  var t1 = zoom ? Math.max(now, s ? s.t : 0, start + 3 * DAY) : endT;
   var hi = 0, lo = Infinity;
-  st.forEach(function(x){ hi = Math.max(hi, x.proj, x.v); lo = Math.min(lo, startVal(x.r)); });
+  st.forEach(function(x){ hi = Math.max(hi, zoom ? x.v : x.proj, x.v); lo = Math.min(lo, startVal(x.r)); });
   if (mode === 'comp') lo = 0;
   var step = niceStep(Math.max(hi - lo, 20) * 1.05);
   var ymin = Math.floor(lo / step) * step;
   var ymax = Math.ceil((ymin + Math.max(hi - ymin, 20) * 1.05) / step) * step;
-  function X(t){ return L + (t - start) / (endT - start) * (W - L - Rm); }
+  function X(t){ return L + (t - start) / (t1 - start) * (W - L - Rm); }
   function Y(v){ return T + (1 - (v - ymin) / (ymax - ymin)) * (H - T - B); }
   var g = '';
   for (var v = ymin; v <= ymax; v += step) {
     g += '<line x1="' + L + '" x2="' + (W - Rm) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--line)" stroke-width="1"/>' +
          '<text x="' + (L - 8) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="12" fill="var(--muted)">' + fmt(v, 0) + '</text>';
   }
-  var ticks = [[start, '25. sep'], [new Date('2026-10-01T00:00:00').getTime(), '1. okt'], [new Date('2026-11-01T00:00:00').getTime(), '1. nov'], [new Date('2026-12-01T00:00:00').getTime(), '1. dec'], [endT, '31. dec']];
+  var ticks;
+  if (zoom) {
+    // A tick every 1–14 days, so at most ~6 labels between 25/9 and today.
+    var span = (t1 - start) / DAY, every = [1, 2, 3, 7, 14, 28].filter(function(n){ return span / n <= 6; })[0] || 28;
+    ticks = [];
+    for (var t = start; t <= t1; t += every * DAY) ticks.push([t, dayLabel(t)]);
+  } else {
+    ticks = [[start, '25. sep'], [new Date('2026-10-01T00:00:00').getTime(), '1. okt'], [new Date('2026-11-01T00:00:00').getTime(), '1. nov'], [new Date('2026-12-01T00:00:00').getTime(), '1. dec'], [endT, '31. dec']];
+  }
+  var lastTick = ticks.length - 1;
   ticks.forEach(function(k, i){
-    var x = X(k[0]);
-    g += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="' + (i === 0 || i === 4 ? '0' : '2 4') + '"/>' +
-         (i > 0 && i < 4 && x - X(start) < 48 ? '' : '<text x="' + x + '" y="' + (H - B + 18) + '" text-anchor="' + (i === 0 ? 'start' : 'middle') + '" font-size="12" fill="var(--muted)">' + k[1] + '</text>');
+    var x = X(k[0]), solid = i === 0 || (!zoom && i === lastTick);
+    var hide = i > 0 && (x - X(start) < 48 || (zoom && X(t1) - x < 24));
+    g += '<line x1="' + x + '" x2="' + x + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--line)" stroke-width="1" stroke-dasharray="' + (solid ? '0' : '2 4') + '"/>' +
+         (hide ? '' : '<text x="' + x + '" y="' + (H - B + 18) + '" text-anchor="' + (i === 0 ? 'start' : 'middle') + '" font-size="12" fill="var(--muted)">' + k[1] + '</text>');
   });
-  var now = Date.now();
   if (now > start && now < endT) {
     g += '<line x1="' + X(now) + '" x2="' + X(now) + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--muted)" stroke-width="1"/>' +
-         '<text x="' + (X(now) + 4) + '" y="' + (T + 10) + '" font-size="11" fill="var(--muted)">i dag</text>';
+         '<text x="' + (X(now) + (zoom ? -4 : 4)) + '" y="' + (T + 10) + '" text-anchor="' + (zoom ? 'end' : 'start') + '" font-size="11" fill="var(--muted)">i dag</text>';
   }
-  var labels = [], s = last();
+  var labels = [];
   st.slice().reverse().forEach(function(x){
     var r = x.r, col = 'var(' + r.c + ')';
     // Step line: flat between runs, jumps up at each run.
-    var off = startVal(r), cum = 0, pts = [[X(start), Y(off)]];
+    var off = startVal(r), cum = 0, pts = [[X(start), Y(off)]], dots = '';
     runsOf(r).slice().sort(function(a, b){ return a.d < b.d ? -1 : 1; }).forEach(function(a){
       var t = new Date(a.d).getTime();
       if (s && t > s.t) return;
       pts.push([X(t), Y(off + cum)]); cum += a.km; pts.push([X(t), Y(off + cum)]);
+      // Zoomed in: a dot on each run, with the run in its tooltip.
+      if (zoom) dots += '<circle cx="' + X(t).toFixed(1) + '" cy="' + Y(off + cum).toFixed(1) + '" r="3" fill="' + col + '"><title>' + esc(r.name + ' · ' + dayLabel(t) + ' · ' + fmt(a.km, 2) + ' km') + '</title></circle>';
     });
     if (s) pts.push([X(s.t), Y(x.v)]);
     var d = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
     var lp = pts[pts.length - 1];
-    if (s) g += '<line x1="' + lp[0] + '" y1="' + lp[1] + '" x2="' + X(endT) + '" y2="' + Y(x.proj) + '" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>';
-    g += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' +
+    if (s && !zoom) g += '<line x1="' + lp[0] + '" y1="' + lp[1] + '" x2="' + X(endT) + '" y2="' + Y(x.proj) + '" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>';
+    g += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' + dots +
          '<circle cx="' + lp[0] + '" cy="' + lp[1] + '" r="4.5" fill="' + col + '" stroke="var(--surface)" stroke-width="2"/>';
-    labels.push({y:Y(x.proj), text:r.name + ' ' + fmt(x.proj, 0), col:col});
+    labels.push(zoom ? {y:Y(x.v), text:r.name + ' ' + fmt(x.v, dec), col:col} : {y:Y(x.proj), text:r.name + ' ' + fmt(x.proj, 0), col:col});
   });
   labels.sort(function(a, b){ return a.y - b.y; });
   for (var i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
   labels.forEach(function(l){
-    g += '<text x="' + (X(endT) + 8) + '" y="' + (l.y + 4) + '" font-size="12" font-weight="600" fill="' + l.col + '">' + esc(l.text) + '</text>';
+    g += '<text x="' + (X(t1) + 8) + '" y="' + (l.y + 4) + '" font-size="12" font-weight="600" fill="' + l.col + '">' + esc(l.text) + '</text>';
   });
   var aria = mode === 'year' ? 'Årets samlede kilometer for hver løber' : 'Kilometer siden 25. september for hver løber';
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + aria + ', med prognose frem til 31. december">' + g + '</svg>';
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + aria + (zoom ? ', fra 25. september til i dag' : ', med prognose frem til 31. december') + '">' + g + '</svg>';
 }
 
 function history(){
@@ -276,6 +295,12 @@ function toggle(){
     '<button type="button" data-mode="year" aria-pressed="' + (mode === 'year') + '">Hele 2026</button></div>';
 }
 
+function viewToggle(){
+  return '<div class="toggle" role="group" aria-label="Vis grafen">' +
+    '<button type="button" data-view="now" aria-pressed="' + (view === 'now') + '">Indtil nu</button>' +
+    '<button type="button" data-view="proj" aria-pressed="' + (view === 'proj') + '">Prognose</button></div>';
+}
+
 function render(){
   var st = standings(), s = last(), now = Date.now();
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((now - start) / DAY) + 1));
@@ -288,9 +313,9 @@ function render(){
     stakes() +
     '<section aria-label="Stilling"><div class="bar-row"><h2>' + (mode === 'year' ? 'Hele 2026' : 'Stillingen') + '</h2>' + toggle() + '</div>' +
     '<div class="bibs">' + bibs(st) + '</div></section>' +
-    '<section><h2>Løbet indtil nu</h2><div class="chart-box">' + chart(st) +
+    '<section><div class="bar-row"><h2>Løbet indtil nu</h2>' + viewToggle() + '</div><div class="chart-box">' + chart(st) +
     '<div class="legend">' + S.runners.map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
-    '<span><i class="dash"></i>Prognose til 31. dec</span></div></div></section>' +
+    (view === 'proj' ? '<span><i class="dash"></i>Prognose til 31. dec</span>' : '') + '</div></div></section>' +
     runList() +
     '<section><h2>Historik</h2>' + history() + '</section>' +
     '</div>';
@@ -303,7 +328,15 @@ function render(){
   });
   var mb = document.getElementById('more-runs');
   if (mb) mb.addEventListener('click', function(){ showAll = !showAll; render(); });
-  [].forEach.call(app.querySelectorAll('.toggle button'), function(b){
+  [].forEach.call(app.querySelectorAll('.toggle button[data-view]'), function(b){
+    b.addEventListener('click', function(){
+      view = b.getAttribute('data-view');
+      try { localStorage.setItem('kmk-view', view); } catch (_) {}
+      render();
+      var f = document.querySelector('.toggle button[data-view="' + view + '"]'); if (f) f.focus();
+    });
+  });
+  [].forEach.call(app.querySelectorAll('.toggle button[data-mode]'), function(b){
     b.addEventListener('click', function(){
       mode = b.getAttribute('data-mode');
       try { localStorage.setItem('kmk-mode', mode); } catch (_) {}
