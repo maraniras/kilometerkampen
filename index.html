@@ -37,6 +37,12 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04e
 .stakes{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;justify-content:space-between;background:var(--cake);color:var(--cake-fg);border-radius:8px;padding:14px 18px}
 .stakes p{margin:0}
 .stakes strong{font-family:var(--display);font-size:20px;letter-spacing:.03em}
+.stakes.fun{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
+.stakes.fun strong{color:var(--fg)}
+.sports{display:flex;flex-wrap:wrap;gap:4px 8px;border-bottom:1px solid var(--line);margin-bottom:-12px}
+.sports button{font:600 18px var(--display);letter-spacing:.05em;text-transform:uppercase;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--muted);padding:8px 10px 10px;cursor:pointer}
+.sports button[aria-pressed="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.sports button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
 .toggle button{font:600 14px var(--body);border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
 .toggle button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
@@ -109,29 +115,54 @@ try { if (localStorage.getItem('kmk-mode') === 'year') mode = 'year'; } catch (_
 // Chart view: 'now' zooms in on 25/9 → today, 'proj' shows the whole period with projections to 31/12.
 var view = 'now';
 try { if (localStorage.getItem('kmk-view') === 'proj') view = 'proj'; } catch (_) {}
+// Sport tab: running is the competition; cycling and swimming are just for fun.
+var sport = 'run';
+try { var saved = localStorage.getItem('kmk-sport'); if (saved === 'ride' || saved === 'swim') sport = saved; } catch (_) {}
+
+// A metric is one thing we total and chart. Values are in display units (km, or metres for swimming and elevation).
+// snap(s) gives that sport's year-to-date {v, r, e} from a snapshot, or null when the snapshot is older than the sport.
+var METRICS = {
+  run:  {list:'runs',  field:'km',   mult:1,    unit:'km', dec:[2, 1], val:'v', label:'Kilometer', snap:function(s){ return s.v ? s : null; }},
+  ride: {list:'rides', field:'km',   mult:1,    unit:'km', dec:[2, 1], val:'v', label:'Kilometer', snap:function(s){ return s.ride || null; }},
+  elev: {list:'rides', field:'elev', mult:1,    unit:'m',  dec:[0, 0], val:'e', label:'Højdemeter', snap:function(s){ return s.ride || null; }},
+  swim: {list:'swims', field:'km',   mult:1000, unit:'m',  dec:[0, 0], val:'v', label:'Meter', snap:function(s){ return s.swim || null; }}
+};
+var SPORTS = {
+  run:  {tab:'🏃 Løb',      one:'løb', many:'løb',  title:'Løbene',       chart:'Løbet indtil nu',  item:'Løb'},
+  ride: {tab:'🚴 Cykling',  one:'tur', many:'ture', title:'Cykelturene',  chart:'Kilometer på cyklen', item:'Cykeltur'},
+  swim: {tab:'🏊 Svømning', one:'tur', many:'ture', title:'Svømmeturene', chart:'Meter i vandet',   item:'Svømmetur'}
+};
+var M = METRICS.run;
+function withM(m, f){ var keep = M; M = m; try { return f(); } finally { M = keep; } }
 
 function fmt(n, d){ d = d == null ? 1 : d; return n.toLocaleString('da-DK', {minimumFractionDigits:d, maximumFractionDigits:d}); }
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 function when(t){ return new Date(t).toLocaleString('da-DK', {weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}); }
-// Competition score = sum of the individual runs since 25/9 (S.runs).
-// Year mode adds each runner's exact 2026 total on 25/9: latest Strava YTD minus the runs counted up to that snapshot.
-function runsOf(r){ return (S.runs && S.runs[r.k]) || []; }
-function sumAt(r, t){ var s = 0; runsOf(r).forEach(function(a){ if (new Date(a.d).getTime() <= t) s += a.km; }); return Math.round(s * 100) / 100; }
-function countAt(r, t){ return runsOf(r).filter(function(a){ return new Date(a.d).getTime() <= t; }).length; }
-function offKm(r){ var s = last(); return mode !== 'year' ? 0 : (s ? s.v[r.k] - sumAt(r, s.t) : r.base); }
-function offRuns(r){ var s = last(); return mode !== 'year' ? 0 : (s && s.r ? s.r[r.k] - countAt(r, s.t) : r.baseRuns); }
+function dec(){ return M.dec[mode === 'year' ? 1 : 0]; }
+function fine(){ return M.unit === 'km' ? 1 : 0; }
+// Competition score = sum of the individual activities since 25/9 (S.runs, S.rides, S.swims).
+// Year mode adds each person's exact 2026 total on 25/9: latest Strava YTD minus the activities counted up to that snapshot.
+function actsOf(r){ return ((S[M.list] || {})[r.k]) || []; }
+function amount(a){ return (a[M.field] || 0) * M.mult; }
+function sumAt(r, t){ var s = 0; actsOf(r).forEach(function(a){ if (new Date(a.d).getTime() <= t) s += amount(a); }); return Math.round(s * 100) / 100; }
+function countAt(r, t){ return actsOf(r).filter(function(a){ return new Date(a.d).getTime() <= t; }).length; }
+function snaps(){ return S.snaps.filter(function(s){ return M.snap(s); }); }
+function last(){ var l = snaps(); return l[l.length - 1]; }
+function ytd(s, r){ var x = M.snap(s)[M.val]; return x && x[r.k] != null ? x[r.k] * M.mult : sumAt(r, s.t); }
+function ytdRuns(s, r){ var x = M.snap(s).r; return x && x[r.k] != null ? x[r.k] : countAt(r, s.t); }
+function offKm(r){ var s = last(); return mode !== 'year' ? 0 : (s ? ytd(s, r) - sumAt(r, s.t) : (M === METRICS.run ? r.base : 0)); }
+function offRuns(r){ var s = last(); return mode !== 'year' ? 0 : (s ? ytdRuns(s, r) - countAt(r, s.t) : (M === METRICS.run ? r.baseRuns : 0)); }
 function km(snap, r){ return sumAt(r, snap.t); }
 function val(snap, r){ return km(snap, r) + offKm(r); }
 function startVal(r){ return offKm(r); }
 function runs(snap, r){ return snap ? countAt(r, snap.t) + offRuns(r) : null; }
-function runsTxt(n){ return n === 1 ? '1 løb' : n + ' løb'; }
-function last(){ return S.snaps[S.snaps.length - 1]; }
+function runsTxt(n){ var sp = SPORTS[sport]; return n + ' ' + (n === 1 ? sp.one : sp.many); }
 
 function standings(m){
   var keep = mode; mode = m || mode;
-  var s = last();
+  var s = last(), l = snaps();
   var el = s ? Math.max((s.t - start) / DAY, 0.5) : 1;
-  var prev = S.snaps.length > 1 ? S.snaps[S.snaps.length - 2] : null;
+  var prev = l.length > 1 ? l[l.length - 2] : null;
   var out = S.runners.map(function(r){
     var comp = s ? km(s, r) : 0, rate = comp / el;
     return {r:r, v: s ? val(s, r) : startVal(r), n: runs(s, r), rate:rate, proj: startVal(r) + rate * totalDays, delta: s && prev ? km(s, r) - km(prev, r) : null};
@@ -141,29 +172,35 @@ function standings(m){
 }
 
 function bibs(st){
-  var dec = mode === 'year' ? 1 : 2;
+  var u = M.unit, d = dec();
   var lead = st[0].v || 1, c = standings('comp');
-  var cakeK = c[c.length - 1].r.k;
+  var cakeK = sport === 'run' ? c[c.length - 1].r.k : null;
   return st.map(function(x, i){
     var gap = i === 0
-      ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v, dec) + ' km' : 'Fører')
-      : fmt(st[0].v - x.v, dec) + ' km efter førstepladsen';
+      ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v, d) + ' ' + u : 'Fører')
+      : fmt(st[0].v - x.v, d) + ' ' + u + ' efter førstepladsen';
+    // Cycling also shows the elevation total for the same period.
+    var elev = sport === 'ride' ? withM(METRICS.elev, function(){ var s = last(); return s ? val(s, x.r) : startVal(x.r); }) : null;
     return '<article class="bib" style="--c:var(' + x.r.c + ')">' +
       '<span class="pin a"></span><span class="pin b"></span><span class="pin c"></span><span class="pin d"></span>' +
       '<div class="bib-top"><span class="name">' + esc(x.r.name) + '</span><span class="rank">' + (i + 1) + '. plads</span></div>' +
-      '<div class="km" style="--n:' + fmt(x.v, dec).length + '">' + fmt(x.v, dec) + '<small>KM</small></div>' +
+      '<div class="km" style="--n:' + fmt(x.v, d).length + '">' + fmt(x.v, d) + '<small>' + u.toUpperCase() + '</small></div>' +
       '<div class="gap">' + gap + '</div>' +
       '<div class="bar"><i style="width:' + Math.max(2, x.v / lead * 100).toFixed(1) + '%"></i></div>' +
-      (x.n != null ? '<div class="runs"><b>' + runsTxt(x.n) + '</b>' + (x.n > 0 ? ' · ' + fmt(x.v / x.n) + ' km i snit pr. løb' : '') + '</div>' : '') +
-      '<div class="sub"><span>' + fmt(x.rate, 2) + ' km pr. dag siden 25/9</span>' +
-      '<span>Prognose 31/12: ' + fmt(x.proj, 0) + ' km</span>' +
-      (x.delta != null ? '<span>Siden sidste opdatering: +' + fmt(x.delta) + ' km</span>' : '') +
+      (x.n != null ? '<div class="runs"><b>' + runsTxt(x.n) + '</b>' + (x.n > 0 ? ' · ' + fmt(x.v / x.n, fine()) + ' ' + u + ' i snit pr. ' + SPORTS[sport].one : '') + '</div>' : '') +
+      '<div class="sub">' + (elev != null ? '<span>' + fmt(elev, 0) + ' højdemeter</span>' : '') +
+      '<span>' + fmt(x.rate, fine() * 2) + ' ' + u + ' pr. dag siden 25/9</span>' +
+      '<span>Prognose 31/12: ' + fmt(x.proj, 0) + ' ' + u + '</span>' +
+      (x.delta != null ? '<span>Siden sidste opdatering: +' + fmt(x.delta, fine()) + ' ' + u + '</span>' : '') +
       '</div>' + (x.r.k === cakeK && last() ? '<span class="cake">🍰 Skal bage kage lige nu</span>' : '') +
       '</article>';
   }).join('');
 }
 
 function stakes(){
+  if (sport !== 'run') {
+    return '<div class="stakes fun"><p><strong>Bare for sjov</strong></p><p>' + (sport === 'ride' ? 'Cykling' : 'Svømning') + ' tæller ikke med i kilometerkampen.</p></div>';
+  }
   var c = standings('comp'), n = c.length;
   if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p></div>';
   var lo = c[n - 1], up = c[n - 2];
@@ -175,17 +212,17 @@ function stakes(){
 }
 
 function niceStep(span){
-  var steps = [10, 20, 25, 50, 100, 200, 250, 500];
+  var steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000];
   for (var i = 0; i < steps.length; i++) if (span / steps[i] <= 5) return steps[i];
-  return 1000;
+  return 100000;
 }
 
 function dayLabel(t){ return new Date(t).toLocaleDateString('da-DK', {day:'numeric', month:'short'}).replace(/\.$/, ''); }
 
 function chart(st){
-  var W = 680, H = 290, L = 50, Rm = 108, T = 14, B = 32;
+  var W = 680, H = 290, L = 54, Rm = 108, T = 14, B = 32;
   var zoom = view === 'now', s = last(), now = Date.now();
-  var dec = mode === 'year' ? 1 : 2;
+  var d = dec();
   var t1 = zoom ? Math.max(now, s ? s.t : 0, start + 3 * DAY) : endT;
   var hi = 0, lo = Infinity;
   st.forEach(function(x){ hi = Math.max(hi, zoom ? x.v : x.proj, x.v); lo = Math.min(lo, startVal(x.r)); });
@@ -223,55 +260,62 @@ function chart(st){
   var labels = [];
   st.slice().reverse().forEach(function(x){
     var r = x.r, col = 'var(' + r.c + ')';
-    // Step line: flat between runs, jumps up at each run.
+    // Step line: flat between activities, jumps up at each one.
     var off = startVal(r), cum = 0, pts = [[X(start), Y(off)]], dots = '';
-    runsOf(r).slice().sort(function(a, b){ return a.d < b.d ? -1 : 1; }).forEach(function(a){
+    actsOf(r).slice().sort(function(a, b){ return a.d < b.d ? -1 : 1; }).forEach(function(a){
       var t = new Date(a.d).getTime();
       if (s && t > s.t) return;
-      pts.push([X(t), Y(off + cum)]); cum += a.km; pts.push([X(t), Y(off + cum)]);
-      // Zoomed in: a dot on each run, with the run in its tooltip.
-      if (zoom) dots += '<circle cx="' + X(t).toFixed(1) + '" cy="' + Y(off + cum).toFixed(1) + '" r="3" fill="' + col + '"><title>' + esc(r.name + ' · ' + dayLabel(t) + ' · ' + fmt(a.km, 2) + ' km') + '</title></circle>';
+      pts.push([X(t), Y(off + cum)]); cum += amount(a); pts.push([X(t), Y(off + cum)]);
+      // Zoomed in: a dot on each activity, with it in the tooltip.
+      if (zoom) dots += '<circle cx="' + X(t).toFixed(1) + '" cy="' + Y(off + cum).toFixed(1) + '" r="3" fill="' + col + '"><title>' + esc(r.name + ' · ' + dayLabel(t) + ' · ' + fmt(amount(a), M.unit === 'km' ? 2 : 0) + ' ' + M.unit) + '</title></circle>';
     });
     if (s) pts.push([X(s.t), Y(x.v)]);
-    var d = pts.map(function(p, i){ return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+    var p = pts.map(function(q, i){ return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join(' ');
     var lp = pts[pts.length - 1];
     if (s && !zoom) g += '<line x1="' + lp[0] + '" y1="' + lp[1] + '" x2="' + X(endT) + '" y2="' + Y(x.proj) + '" stroke="' + col + '" stroke-width="1.5" stroke-dasharray="4 4" opacity=".55"/>';
-    g += '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' + dots +
+    g += '<path d="' + p + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' + dots +
          '<circle cx="' + lp[0] + '" cy="' + lp[1] + '" r="4.5" fill="' + col + '" stroke="var(--surface)" stroke-width="2"/>';
-    labels.push(zoom ? {y:Y(x.v), text:r.name + ' ' + fmt(x.v, dec), col:col} : {y:Y(x.proj), text:r.name + ' ' + fmt(x.proj, 0), col:col});
+    labels.push(zoom ? {y:Y(x.v), text:r.name + ' ' + fmt(x.v, d), col:col} : {y:Y(x.proj), text:r.name + ' ' + fmt(x.proj, 0), col:col});
   });
   labels.sort(function(a, b){ return a.y - b.y; });
   for (var i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
   labels.forEach(function(l){
     g += '<text x="' + (X(t1) + 8) + '" y="' + (l.y + 4) + '" font-size="12" font-weight="600" fill="' + l.col + '">' + esc(l.text) + '</text>';
   });
-  var aria = mode === 'year' ? 'Årets samlede kilometer for hver løber' : 'Kilometer siden 25. september for hver løber';
+  var aria = M.label + (mode === 'year' ? ' i hele 2026' : ' siden 25. september') + ' for hver deltager';
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + aria + (zoom ? ', fra 25. september til i dag' : ', med prognose frem til 31. december') + '">' + g + '</svg>';
 }
 
+function chartSection(title, withToggle){
+  return '<section><div class="bar-row"><h2>' + title + '</h2>' + (withToggle ? viewToggle() : '') + '</div><div class="chart-box">' + chart(standings()) +
+    '<div class="legend">' + S.runners.map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
+    (view === 'proj' ? '<span><i class="dash"></i>Prognose til 31. dec</span>' : '') + '</div></div></section>';
+}
+
 function history(){
-  var rows = S.snaps.slice().reverse().map(function(sn, i, arr){
+  var u = M.unit, d = dec();
+  var rows = snaps().reverse().map(function(sn, i, arr){
     var prev = arr[i + 1];
     return '<tr><td>' + when(sn.t) + '</td>' + S.runners.map(function(r){
-      var d = prev ? km(sn, r) - km(prev, r) : null, n = runs(sn, r);
-      return '<td>' + fmt(val(sn, r)) + ' km' + (n != null ? '<span class="d">' + runsTxt(n) + '</span>' : '') + (d != null ? '<span class="d">+' + fmt(d) + '</span>' : '') + '</td>';
+      var dd = prev ? km(sn, r) - km(prev, r) : null, n = runs(sn, r);
+      return '<td>' + fmt(val(sn, r), d) + ' ' + u + (n != null ? '<span class="d">' + runsTxt(n) + '</span>' : '') + (dd != null ? '<span class="d">+' + fmt(dd, fine()) + '</span>' : '') + '</td>';
     }).join('') + '</tr>';
   });
-  rows.push('<tr><td>25. sep (start)</td>' + S.runners.map(function(r){ return '<td>' + fmt(startVal(r)) + ' km<span class="d">' + runsTxt(offRuns(r)) + '</span></td>'; }).join('') + '</tr>');
+  rows.push('<tr><td>25. sep (start)</td>' + S.runners.map(function(r){ return '<td>' + fmt(startVal(r), d) + ' ' + u + '<span class="d">' + runsTxt(offRuns(r)) + '</span></td>'; }).join('') + '</tr>');
   return '<div class="table-box"><table><thead><tr><th>Opdateret</th>' + S.runners.map(function(r){ return '<th>' + esc(r.name) + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 
 var runFilter = 'all', showAll = false, RUN_LIMIT = 15;
 
 function runList(){
-  var R = S.runs || {};
+  var sp = SPORTS[sport], R = S[M.list] || {};
   var all = [];
   S.runners.forEach(function(r){ (R[r.k] || []).forEach(function(a){ all.push({r:r, a:a}); }); });
-  if (!all.length) return '';
+  if (!all.length) return '<section><h2>' + sp.title + '</h2><p class="msg">Ingen ' + sp.many + ' siden 25/9 endnu.</p></section>';
   all.sort(function(x, y){ return x.a.d < y.a.d ? 1 : -1; });
   var list = runFilter === 'all' ? all : all.filter(function(x){ return x.r.k === runFilter; });
   var shown = showAll ? list : list.slice(0, RUN_LIMIT);
-  var chips = '<div class="filters" role="group" aria-label="Vis løb for">' +
+  var chips = '<div class="filters" role="group" aria-label="Vis ' + sp.title.toLowerCase() + ' for">' +
     '<button type="button" data-run="all" aria-pressed="' + (runFilter === 'all') + '">Alle</button>' +
     S.runners.map(function(r){
       var n = (R[r.k] || []).length;
@@ -280,17 +324,25 @@ function runList(){
   var items = shown.map(function(x){
     var a = x.a, day = new Date(a.d).toLocaleDateString('da-DK', {weekday:'short', day:'numeric', month:'short'});
     var time = new Date(a.d).toLocaleTimeString('da-DK', {hour:'2-digit', minute:'2-digit'});
+    // Extra details: pace for runs and swims, elevation and duration for rides.
+    var extra = [a.elev != null && sport === 'ride' ? fmt(a.elev, 0) + ' hm' : '', a.pace || '', sport !== 'run' ? a.time || '' : ''].filter(Boolean);
     return '<li style="--c:var(' + x.r.c + ')"><span class="who" aria-hidden="true"><span class="dot"></span></span>' +
-      '<span class="title"><a href="https://www.strava.com/activities/' + encodeURIComponent(a.id) + '" target="_blank" rel="noopener">' + esc(a.name || 'Løb') + '</a></span>' +
-      '<span class="rkm">' + fmt(a.km, 2) + '<small>km</small></span>' +
-      '<span class="info">' + esc(x.r.name) + ' · ' + day + ' kl. ' + time + (a.pace ? ' · <span class="nw">' + esc(a.pace) + '</span>' : '') + '</span></li>';
+      '<span class="title"><a href="https://www.strava.com/activities/' + encodeURIComponent(a.id) + '" target="_blank" rel="noopener">' + esc(a.name || sp.item) + '</a></span>' +
+      '<span class="rkm">' + fmt(amount(a), M.unit === 'km' ? 2 : 0) + '<small>' + M.unit + '</small></span>' +
+      '<span class="info">' + esc(x.r.name) + ' · ' + day + ' kl. ' + time + extra.map(function(e){ return ' · <span class="nw">' + esc(e) + '</span>'; }).join('') + '</span></li>';
   }).join('');
-  var more = list.length > RUN_LIMIT ? '<button type="button" class="more" id="more-runs">' + (showAll ? 'Vis færre' : 'Vis alle ' + list.length + ' løb') + '</button>' : '';
-  return '<section><h2>Løbene</h2>' + chips + '<ul class="runlist">' + items + '</ul>' + more + '</section>';
+  var more = list.length > RUN_LIMIT ? '<button type="button" class="more" id="more-runs">' + (showAll ? 'Vis færre' : 'Vis alle ' + runsTxt(list.length)) + '</button>' : '';
+  return '<section><h2>' + sp.title + '</h2>' + chips + '<ul class="runlist">' + items + '</ul>' + more + '</section>';
+}
+
+function sportTabs(){
+  return '<nav class="sports" aria-label="Sportsgren">' + Object.keys(SPORTS).map(function(k){
+    return '<button type="button" data-sport="' + k + '" aria-pressed="' + (sport === k) + '">' + SPORTS[k].tab + '</button>';
+  }).join('') + '</nav>';
 }
 
 function toggle(){
-  return '<div class="toggle" role="group" aria-label="Vis kilometer">' +
+  return '<div class="toggle" role="group" aria-label="Vis periode">' +
     '<button type="button" data-mode="comp" aria-pressed="' + (mode === 'comp') + '">Siden 25/9</button>' +
     '<button type="button" data-mode="year" aria-pressed="' + (mode === 'year') + '">Hele 2026</button></div>';
 }
@@ -302,7 +354,8 @@ function viewToggle(){
 }
 
 function render(){
-  var st = standings(), s = last(), now = Date.now();
+  M = METRICS[sport];
+  var st = standings(), s = S.snaps[S.snaps.length - 1], now = Date.now();
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((now - start) / DAY) + 1));
   var app = document.getElementById('app');
   app.innerHTML = '<div class="wrap">' +
@@ -310,40 +363,31 @@ function render(){
     '<p class="meta"><span>Dag <b>' + dayNo + '</b> af ' + totalDays + '</span><span><b>' + Math.max(0, totalDays - dayNo) + '</b> dage tilbage</span>' +
     (s ? '<span>Opdateret ' + when(s.t) + '</span>' : '<span>Ingen data endnu</span>') + '</p>' +
     '<div class="track" aria-hidden="true"><i style="width:' + (dayNo / totalDays * 100).toFixed(1) + '%"></i></div></header>' +
+    sportTabs() +
     stakes() +
     '<section aria-label="Stilling"><div class="bar-row"><h2>' + (mode === 'year' ? 'Hele 2026' : 'Stillingen') + '</h2>' + toggle() + '</div>' +
     '<div class="bibs">' + bibs(st) + '</div></section>' +
-    '<section><div class="bar-row"><h2>Løbet indtil nu</h2>' + viewToggle() + '</div><div class="chart-box">' + chart(st) +
-    '<div class="legend">' + S.runners.map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
-    (view === 'proj' ? '<span><i class="dash"></i>Prognose til 31. dec</span>' : '') + '</div></div></section>' +
+    chartSection(SPORTS[sport].chart, true) +
+    (sport === 'ride' ? withM(METRICS.elev, function(){ return chartSection('Højdemeter', false); }) : '') +
     runList() +
     '<section><h2>Historik</h2>' + history() + '</section>' +
     '</div>';
-  [].forEach.call(app.querySelectorAll('.filters button'), function(b){
-    b.addEventListener('click', function(){
-      runFilter = b.getAttribute('data-run'); showAll = false;
-      render();
-      var f = document.querySelector('.filters button[data-run="' + runFilter + '"]'); if (f) f.focus();
+  function bind(sel, attr, set){
+    [].forEach.call(app.querySelectorAll(sel), function(b){
+      b.addEventListener('click', function(){
+        var v = b.getAttribute(attr);
+        set(v);
+        render();
+        var f = document.querySelector(sel + '[' + attr + '="' + v + '"]'); if (f) f.focus();
+      });
     });
-  });
+  }
+  bind('.filters button', 'data-run', function(v){ runFilter = v; showAll = false; });
+  bind('.sports button', 'data-sport', function(v){ sport = v; runFilter = 'all'; showAll = false; try { localStorage.setItem('kmk-sport', v); } catch (_) {} });
+  bind('.toggle button[data-view]', 'data-view', function(v){ view = v; try { localStorage.setItem('kmk-view', v); } catch (_) {} });
+  bind('.toggle button[data-mode]', 'data-mode', function(v){ mode = v; try { localStorage.setItem('kmk-mode', v); } catch (_) {} });
   var mb = document.getElementById('more-runs');
   if (mb) mb.addEventListener('click', function(){ showAll = !showAll; render(); });
-  [].forEach.call(app.querySelectorAll('.toggle button[data-view]'), function(b){
-    b.addEventListener('click', function(){
-      view = b.getAttribute('data-view');
-      try { localStorage.setItem('kmk-view', view); } catch (_) {}
-      render();
-      var f = document.querySelector('.toggle button[data-view="' + view + '"]'); if (f) f.focus();
-    });
-  });
-  [].forEach.call(app.querySelectorAll('.toggle button[data-mode]'), function(b){
-    b.addEventListener('click', function(){
-      mode = b.getAttribute('data-mode');
-      try { localStorage.setItem('kmk-mode', mode); } catch (_) {}
-      render();
-      var f = document.querySelector('.toggle button[data-mode="' + mode + '"]'); if (f) f.focus();
-    });
-  });
 }
 
 fetch('data.json', {cache: 'no-store'}).then(function(r){
