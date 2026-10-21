@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ironmans 2026 Kilometerkampen</title>
-<meta name="description" content="Løbekonkurrence mellem Mathias, Ida og Anna fra 25. september til 31. december 2026. Vinderen giver kage.">
+<meta name="description" content="Løbekonkurrence mellem Mathias, Ida og Anna fra 25. september til 31. december 2026. Taberen giver kage.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
@@ -174,7 +174,7 @@ function standings(m){
 function bibs(st){
   var u = M.unit, d = dec();
   var lead = st[0].v || 1, c = standings('comp');
-  var cakeK = sport === 'run' ? c[0].r.k : null;
+  var cakeK = sport === 'run' ? c[c.length - 1].r.k : null;
   return st.map(function(x, i){
     var gap = i === 0
       ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v, d) + ' ' + u : 'Fører')
@@ -202,13 +202,13 @@ function stakes(){
     return '<div class="stakes fun"><p><strong>Bare for sjov</strong></p><p>' + (sport === 'ride' ? 'Cykling' : 'Svømning') + ' tæller ikke med i kilometerkampen.</p></div>';
   }
   var c = standings('comp'), n = c.length;
-  if (!last() || n < 2) return '<div class="stakes"><p><strong>Vinderen giver kage 🍰</strong></p></div>';
-  var win = c[0], next = c[1];
+  if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p></div>';
+  var lo = c[n - 1], up = c[n - 2];
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
   var msg = Date.now() > endT
-    ? esc(win.r.name) + ' vandt og giver kage til ' + c.slice(1).map(function(x){ return esc(x.r.name); }).join(' og ') + '.'
-    : 'Lige nu er det <b>' + esc(win.r.name) + '</b>, der skal bage. ' + fmt(win.v - next.v, 2) + ' km foran ' + esc(next.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
-  return '<div class="stakes"><p><strong>Vinderen giver kage 🍰</strong></p><p>' + msg + '</p></div>';
+    ? esc(lo.r.name) + ' tabte og skylder kage til ' + c.slice(0, n - 1).map(function(x){ return esc(x.r.name); }).join(' og ') + '.'
+    : 'Lige nu er det <b>' + esc(lo.r.name) + '</b>, der skal bage. ' + fmt(up.v - lo.v, 2) + ' km op til ' + esc(up.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
+  return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p><p>' + msg + '</p></div>';
 }
 
 function niceStep(span){

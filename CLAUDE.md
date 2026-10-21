@@ -1,6 +1,6 @@
 # Ironmans 2026 Kilometerkampen
 
-A running competition between Mathias, Ida and Anna: who runs the most km from 25 Sep to 31 Dec 2026. The **winner** bakes cake for the others (changed from loser on 20 Oct).
+A running competition between Mathias, Ida and Anna: who runs the most km from 25 Sep to 31 Dec 2026. The loser bakes cake for the others.
 
 - Live site (GitHub Pages): https://maraniras.github.io/kilometerkampen/
 - `index.html` is a static page that renders everything from `data.json`. Normally only `data.json` changes.
@@ -36,7 +36,7 @@ The page also has tabs for cycling and swimming. They work the same way (since 2
    - Merge `runs`, `rides` and `swims` the same way: for each runner, combine the stored list with the new one by `id` (new data wins), keep only runs on/after 25 Sep, sort by date `d`. Never drop a stored run just because it's missing from a new fetch; ask the user if one seems to have been deleted.
    - Don't touch anything else. Keep the file layout: one line per runner in `runs`/`rides`/`swims`, one line per snapshot.
 4. **Publish:** `git pull`, then commit `data.json` with a message like `Opdatering 12. okt` and `git push`. GitHub Pages updates the site in about a minute.
-5. **Report** to the user in Danish: standings in km since 25/9 (with runs), gaps, who is currently baking cake (the leader), and the site link. Mention new rides/swims briefly in a line or two; the running competition comes first.
+5. **Report** to the user in Danish: standings in km since 25/9 (with runs), gaps, who is currently baking cake, and the site link. Mention new rides/swims briefly in a line or two; the running competition comes first.
 
 ## Files
 
