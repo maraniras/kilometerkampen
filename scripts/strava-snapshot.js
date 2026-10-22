@@ -3,7 +3,7 @@
 // {"t":..., "v":{...}, "r":{...}, "ride":{"v","r","e"}, "swim":{"v","r"},
 //  "runs":{"mathias":[{id,d,km,name,pace}], ...}, "rides":{...[{id,d,km,elev,name,time}]}, "swims":{...[{id,d,km,name,pace,time}]}}
 // v = 2026 year-to-date km, r = 2026 year-to-date number of activities, e = 2026 year-to-date elevation gain in metres.
-// Profile sidebar: "sport-0" = running, "sport-1" = swimming (in metres), "sport-2" = cycling.
+// Profile sidebar: one "sport-N" block per sport. The order differs per athlete, so sports are found by tab title (Løb / Svømning / Cykeltur). Swimming is in metres.
 // Activities come from the weekly activity feed on each profile (ISO weeks).
 (async () => {
   const athletes = { mathias: '122226265', ida: '132593466', anna: '84447586' };
@@ -46,23 +46,30 @@
     // Year-to-date totals
     const res = await fetch('/athletes/' + id + '/profile_sidebar_comparison?hl=da-DK&ytd_year=2026', hdr);
     if (!res.ok) throw new Error(k + ': HTTP ' + res.status);
-    const doc = new DOMParser().parseFromString('<table>' + await res.text() + '</table>', 'text/html');
+    const doc = new DOMParser().parseFromString('<div>' + await res.text() + '</div>', 'text/html');
+    // The order of the sport tabs differs per athlete (e.g. swimming first), so find each sport by its tab title.
+    const sportId = re => {
+      const tab = [...doc.querySelectorAll('[class*="-tab"]')].find(b => /sport-\d+-tab/.test(b.className) && re.test(b.getAttribute('title') || ''));
+      if (!tab) throw new Error(k + ': fandt ikke fanen ' + re);
+      return 'sport-' + tab.className.match(/sport-(\d+)-tab/)[1];
+    };
+    const RUN = sportId(/^(løb|run)/i), SWIM = sportId(/^(svøm|swim)/i), RIDE = sportId(/^(cykel|ride)/i);
     const cell = (sport, re) => {
       const row = [...doc.querySelectorAll('#' + sport + '-ytd tr')].find(x => re.test(x.children[0] && x.children[0].textContent));
       return row ? row.children[1].textContent.trim() : null;
     };
-    const dist = cell('sport-0', /distance/i), acts = cell('sport-0', /aktivitet|activit/i);
+    const dist = cell(RUN, /distance/i), acts = cell(RUN, /aktivitet|activit/i);
     if (!dist || !/km/.test(dist)) throw new Error(k + ': fandt ikke distance (' + dist + ')');
     v[k] = num(dist);
     if (acts) r[k] = parseInt(acts.replace(/\D/g, ''), 10);
-    const rd = cell('sport-2', /distance/i), sd = cell('sport-1', /distance/i);
+    const rd = cell(RIDE, /distance/i), sd = cell(SWIM, /distance/i);
     if (!rd || !/km/.test(rd)) throw new Error(k + ': fandt ikke cykeldistance (' + rd + ')');
     if (!sd || !/ m$/.test(sd)) throw new Error(k + ': fandt ikke svømmedistance (' + sd + ')');
     ride.v[k] = num(rd);
-    ride.r[k] = parseInt(cell('sport-2', /aktivitet|activit/i).replace(/\D/g, ''), 10);
-    ride.e[k] = parseInt((cell('sport-2', /stigning|elev/i) || '0').replace(/\D/g, ''), 10);
+    ride.r[k] = parseInt(cell(RIDE, /aktivitet|activit/i).replace(/\D/g, ''), 10);
+    ride.e[k] = parseInt((cell(RIDE, /stigning|elev/i) || '0').replace(/\D/g, ''), 10);
     swim.v[k] = Math.round(kmIn(sd) * 1000) / 1000;
-    swim.r[k] = parseInt(cell('sport-1', /aktivitet|activit/i).replace(/\D/g, ''), 10);
+    swim.r[k] = parseInt(cell(SWIM, /aktivitet|activit/i).replace(/\D/g, ''), 10);
 
     // Individual activities (solo activities and group activities)
     const seen = {};
