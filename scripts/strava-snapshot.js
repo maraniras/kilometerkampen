@@ -37,7 +37,9 @@
     const js = await fetch('/athletes/' + id + '/interval?interval=' + week + '&interval_type=week&chart_type=miles&year_offset=0', hdr).then(x => x.text());
     const html = [];
     const fake = () => { const o = {}; ['html', 'append', 'replaceWith', 'show', 'hide', 'addClass', 'removeClass', 'text', 'attr', 'find', 'trigger', 'each', 'remove'].forEach(m => o[m] = x => { if (typeof x === 'string') html.push(x); return o; }); return o; };
-    new Function('jQuery', '$', js)(fake, fake);
+    // The feed script also calls Strava UI helpers (Strava.Feed.Ui..., Strava.Util...); a do-nothing stub stands in for them.
+    const stub = new Proxy(function () {}, { get: (t, p) => p === Symbol.toPrimitive ? () => '' : stub, apply: () => stub, construct: () => stub });
+    new Function('jQuery', '$', 'Strava', js)(fake, fake, stub);
     const el = new DOMParser().parseFromString(html.join(''), 'text/html').querySelector('[data-react-props]');
     return el ? JSON.parse(el.getAttribute('data-react-props')) : {};
   }
