@@ -24,7 +24,7 @@ The page also has tabs for cycling and swimming. They work the same way (since 2
 
 1. **Read Strava** with Claude in Chrome. The user must be logged in to Strava in Chrome.
    - Open `https://www.strava.com/dashboard` in a tab.
-   - Run the contents of `scripts/strava-snapshot.js` in that tab with the javascript tool. It returns `{"t":..., "v":{...}, "r":{...}, "ride":{...}, "swim":{...}, "runs":{...}, "rides":{...}, "swims":{...}}`. The output is usually too long to come back in one piece: store it on `window` (`window.__snap = await ...`) and read the totals first, then `runs`, `rides` and `swims` a runner or two at a time.
+   - Run the contents of `scripts/strava-snapshot.js` in that tab with the javascript tool. It returns `{"t":..., "v":{...}, "r":{...}, "ride":{...}, "swim":{...}, "runs":{...}, "rides":{...}, "swims":{...}}`. The output is usually too long to come back in one piece: store it on `window` (`window.__snap = await ...`) and read the totals first, then `runs`, `rides` and `swims` a runner or two at a time. The script takes a while (one request per week per person); if the javascript tool times out, the script keeps running in the tab, so just read `window.__snap` again a bit later.
    - If it fails (Strava changed something), open each profile, `https://www.strava.com/athletes/<athleteId>` (ids in `data.json`), and read the "2026" block in the running stats sidebar (Aktiviteter = runs, Distance = km). Note: on other people's profiles the sidebar compares two columns; the **first** column is the profile owner, the second is the logged-in user.
 2. **Sanity check** before writing:
    - every km value ≥ that runner's `base`;
