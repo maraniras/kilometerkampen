@@ -12,6 +12,10 @@ Competition km = **the sum of each runner's individual runs since 25 Sep** (`run
 
 `base`/`baseRuns` are the rounded 2026 totals on 25 Sep from the Strava app. They're only a fallback and a sanity check. Never change them unless the user asks.
 
+### Team mode (temporary, since 7 Nov)
+
+While `data.json` has `"teams": [["anna", "mathias"], ["ida"]]`, the running competition is **Anna + Mathias vs Ida**: a team's score is the sum of its members' km since 25 Sep, and everyone on the losing team bakes. The page shows the team score in the cake box; cards, charts and lists stay per person. The user will switch back at some point: then just remove `teams` from `data.json` (nothing else changes). Don't remove it before the user asks.
+
 ### Cycling and swimming (just for fun)
 
 The page also has tabs for cycling and swimming. They work the same way (since 25 Sep / all of 2026, chart, list, history) but are **not** part of the competition: no cake. Cycling also has an elevation chart.
@@ -34,9 +38,9 @@ The page also has tabs for cycling and swimming. They work the same way (since 2
 3. **Write `data.json`:**
    - Append `{t, v, r, ride, swim}` to `snaps`. If the latest snapshot is from the same calendar day (Europe/Copenhagen), replace it instead of appending. Keep `snaps` sorted by `t`.
    - Merge `runs`, `rides` and `swims` the same way: for each runner, combine the stored list with the new one by `id` (new data wins), keep only runs on/after 25 Sep, sort by date `d`. Never drop a stored run just because it's missing from a new fetch; ask the user if one seems to have been deleted.
-   - Don't touch anything else. Keep the file layout: one line per runner in `runs`/`rides`/`swims`, one line per snapshot.
+   - Don't touch anything else (keep `teams` if it's there). Keep the file layout: one line per runner in `runs`/`rides`/`swims`, one line per snapshot.
 4. **Publish:** `git pull`, then commit `data.json` with a message like `Opdatering 12. okt` and `git push`. GitHub Pages updates the site in about a minute.
-5. **Report** to the user in Danish: standings in km since 25/9 (with runs), gaps, who is currently baking cake, and the site link. Mention new rides/swims briefly in a line or two; the running competition comes first.
+5. **Report** to the user in Danish: standings in km since 25/9 (with runs), gaps, who is currently baking cake (in team mode: the team totals first, then the individual table), and the site link. Mention new rides/swims briefly in a line or two; the running competition comes first.
 
 ## Files
 

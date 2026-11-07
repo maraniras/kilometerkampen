@@ -37,6 +37,9 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04e
 .stakes{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;justify-content:space-between;background:var(--cake);color:var(--cake-fg);border-radius:8px;padding:14px 18px}
 .stakes p{margin:0}
 .stakes strong{font-family:var(--display);font-size:20px;letter-spacing:.03em}
+.stakes .teams{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-variant-numeric:tabular-nums}
+.stakes .teams b{font-family:var(--display);font-size:18px;letter-spacing:.03em}
+.stakes .vs{opacity:.7;font-size:14px}
 .stakes.fun{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
 .stakes.fun strong{color:var(--fg)}
 .sports{display:flex;flex-wrap:wrap;gap:4px 8px;border-bottom:1px solid var(--line);margin-bottom:-12px}
@@ -174,7 +177,7 @@ function standings(m){
 function bibs(st){
   var u = M.unit, d = dec();
   var lead = st[0].v || 1, c = standings('comp');
-  var cakeK = sport === 'run' ? c[c.length - 1].r.k : null;
+  var cakeKs = cakeKeys();
   return st.map(function(x, i){
     var gap = i === 0
       ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v, d) + ' ' + u : 'Fører')
@@ -192,14 +195,44 @@ function bibs(st){
       '<span>' + fmt(x.rate, fine() * 2) + ' ' + u + ' pr. dag siden 25/9</span>' +
       '<span>Prognose 31/12: ' + fmt(x.proj, 0) + ' ' + u + '</span>' +
       (x.delta != null ? '<span>Siden sidste opdatering: +' + fmt(x.delta, fine()) + ' ' + u + '</span>' : '') +
-      '</div>' + (x.r.k === cakeK && last() ? '<span class="cake">🍰 Skal bage kage lige nu</span>' : '') +
+      '</div>' + (cakeKs.indexOf(x.r.k) >= 0 && last() ? '<span class="cake">🍰 Skal bage kage lige nu</span>' : '') +
       '</article>';
   }).join('');
+}
+
+// Temporary team mode: S.teams = [["anna", "mathias"], ["ida"]]. A team's score is the sum of its members' km since 25/9.
+// Without S.teams it's everyone for themselves.
+function teamStandings(){
+  if (!S.teams || sport !== 'run') return null;
+  var by = {};
+  standings('comp').forEach(function(x){ by[x.r.k] = x; });
+  return S.teams.map(function(ks){
+    var m = ks.map(function(k){ return by[k]; }).filter(Boolean);
+    return {ks:ks, name: m.map(function(x){ return x.r.name; }).join(' og '), v: m.reduce(function(s, x){ return s + x.v; }, 0)};
+  }).sort(function(a, b){ return b.v - a.v; });
+}
+
+// Who bakes right now: the last runner, or everyone on the last team.
+function cakeKeys(){
+  if (sport !== 'run') return [];
+  var t = teamStandings();
+  if (t && t.length > 1) return t[t.length - 1].ks;
+  var c = standings('comp');
+  return [c[c.length - 1].r.k];
 }
 
 function stakes(){
   if (sport !== 'run') {
     return '<div class="stakes fun"><p><strong>Bare for sjov</strong></p><p>' + (sport === 'ride' ? 'Cykling' : 'Svømning') + ' tæller ikke med i kilometerkampen.</p></div>';
+  }
+  var t = teamStandings(), days = totalDays - Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
+  if (t && t.length > 1 && last()) {
+    var tl = t[t.length - 1], tu = t[t.length - 2];
+    var tmsg = Date.now() > endT
+      ? esc(tl.name) + ' tabte og skylder kage til ' + t.slice(0, -1).map(function(x){ return esc(x.name); }).join(' og ') + '.'
+      : 'Lige nu er det <b>' + esc(tl.name) + '</b>, der skal bage. ' + fmt(tu.v - tl.v, 2) + ' km op til ' + esc(tu.name) + ' med ' + days + ' dage tilbage.';
+    var board = '<p class="teams">' + t.map(function(x){ return '<span><b>' + esc(x.name) + '</b> ' + fmt(x.v, 2) + ' km</span>'; }).join('<span class="vs">mod</span>') + '</p>';
+    return '<div class="stakes"><p><strong>Holdkamp · taberholdet giver kage 🍰</strong></p>' + board + '<p>' + tmsg + '</p></div>';
   }
   var c = standings('comp'), n = c.length;
   if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p></div>';
