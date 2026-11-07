@@ -37,9 +37,6 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04e
 .stakes{display:flex;flex-wrap:wrap;align-items:center;gap:6px 20px;justify-content:space-between;background:var(--cake);color:var(--cake-fg);border-radius:8px;padding:14px 18px}
 .stakes p{margin:0}
 .stakes strong{font-family:var(--display);font-size:20px;letter-spacing:.03em}
-.stakes .teams{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-variant-numeric:tabular-nums}
-.stakes .teams b{font-family:var(--display);font-size:18px;letter-spacing:.03em}
-.stakes .vs{opacity:.7;font-size:14px}
 .stakes.fun{background:var(--surface);color:var(--muted);border:1px solid var(--line)}
 .stakes.fun strong{color:var(--fg)}
 .sports{display:flex;flex-wrap:wrap;gap:4px 8px;border-bottom:1px solid var(--line);margin-bottom:-12px}
@@ -53,7 +50,7 @@ h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:.04e
 .bar-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin-bottom:16px}
 .bar-row h2{margin:0}
 
-.bibs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.bibs{display:grid;grid-template-columns:repeat(var(--cols,3),minmax(0,1fr));gap:16px}
 @media (max-width:720px){.bibs{grid-template-columns:1fr}}
 .bib{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:26px 24px 22px;display:grid;gap:4px;min-width:0;align-content:start;container-type:inline-size}
 .pin{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--bg);border:1px solid var(--pin)}
@@ -145,14 +142,24 @@ function dec(){ return M.dec[mode === 'year' ? 1 : 0]; }
 function fine(){ return M.unit === 'km' ? 1 : 0; }
 // Competition score = sum of the individual activities since 25/9 (S.runs, S.rides, S.swims).
 // Year mode adds each person's exact 2026 total on 25/9: latest Strava YTD minus the activities counted up to that snapshot.
-function actsOf(r){ return ((S[M.list] || {})[r.k]) || []; }
+// Temporary team mode: S.teams = [["anna", "mathias"], ["ida"]]. In the running tab each team is one competitor
+// whose activities and totals are its members' combined. Without S.teams it's everyone for themselves.
+function people(){
+  if (!S.teams || sport !== 'run') return S.runners;
+  return S.teams.map(function(ks, i){
+    var m = ks.map(function(k){ return S.runners.filter(function(r){ return r.k === k; })[0]; }).filter(Boolean);
+    var sum = function(f){ return m.reduce(function(s, r){ return s + (r[f] || 0); }, 0); };
+    return {k:'team' + i, name: m.map(function(r){ return r.name; }).join(' og '), c: m[0].c, members: m, base: sum('base'), baseRuns: sum('baseRuns')};
+  });
+}
+function actsOf(r){ return r.members ? [].concat.apply([], r.members.map(actsOf)) : ((S[M.list] || {})[r.k]) || []; }
 function amount(a){ return (a[M.field] || 0) * M.mult; }
 function sumAt(r, t){ var s = 0; actsOf(r).forEach(function(a){ if (new Date(a.d).getTime() <= t) s += amount(a); }); return Math.round(s * 100) / 100; }
 function countAt(r, t){ return actsOf(r).filter(function(a){ return new Date(a.d).getTime() <= t; }).length; }
 function snaps(){ return S.snaps.filter(function(s){ return M.snap(s); }); }
 function last(){ var l = snaps(); return l[l.length - 1]; }
-function ytd(s, r){ var x = M.snap(s)[M.val]; return x && x[r.k] != null ? x[r.k] * M.mult : sumAt(r, s.t); }
-function ytdRuns(s, r){ var x = M.snap(s).r; return x && x[r.k] != null ? x[r.k] : countAt(r, s.t); }
+function ytd(s, r){ if (r.members) return r.members.reduce(function(t, m){ return t + ytd(s, m); }, 0); var x = M.snap(s)[M.val]; return x && x[r.k] != null ? x[r.k] * M.mult : sumAt(r, s.t); }
+function ytdRuns(s, r){ if (r.members) return r.members.reduce(function(t, m){ return t + ytdRuns(s, m); }, 0); var x = M.snap(s).r; return x && x[r.k] != null ? x[r.k] : countAt(r, s.t); }
 function offKm(r){ var s = last(); return mode !== 'year' ? 0 : (s ? ytd(s, r) - sumAt(r, s.t) : (M === METRICS.run ? r.base : 0)); }
 function offRuns(r){ var s = last(); return mode !== 'year' ? 0 : (s ? ytdRuns(s, r) - countAt(r, s.t) : (M === METRICS.run ? r.baseRuns : 0)); }
 function km(snap, r){ return sumAt(r, snap.t); }
@@ -166,7 +173,7 @@ function standings(m){
   var s = last(), l = snaps();
   var el = s ? Math.max((s.t - start) / DAY, 0.5) : 1;
   var prev = l.length > 1 ? l[l.length - 2] : null;
-  var out = S.runners.map(function(r){
+  var out = people().map(function(r){
     var comp = s ? km(s, r) : 0, rate = comp / el;
     return {r:r, v: s ? val(s, r) : startVal(r), n: runs(s, r), rate:rate, proj: startVal(r) + rate * totalDays, delta: s && prev ? km(s, r) - km(prev, r) : null};
   }).sort(function(a, b){ return b.v - a.v; });
@@ -177,7 +184,7 @@ function standings(m){
 function bibs(st){
   var u = M.unit, d = dec();
   var lead = st[0].v || 1, c = standings('comp');
-  var cakeKs = cakeKeys();
+  var cakeK = sport === 'run' ? c[c.length - 1].r.k : null;
   return st.map(function(x, i){
     var gap = i === 0
       ? (st.length > 1 ? 'Fører med ' + fmt(x.v - st[1].v, d) + ' ' + u : 'Fører')
@@ -195,53 +202,23 @@ function bibs(st){
       '<span>' + fmt(x.rate, fine() * 2) + ' ' + u + ' pr. dag siden 25/9</span>' +
       '<span>Prognose 31/12: ' + fmt(x.proj, 0) + ' ' + u + '</span>' +
       (x.delta != null ? '<span>Siden sidste opdatering: +' + fmt(x.delta, fine()) + ' ' + u + '</span>' : '') +
-      '</div>' + (cakeKs.indexOf(x.r.k) >= 0 && last() ? '<span class="cake">🍰 Skal bage kage lige nu</span>' : '') +
+      '</div>' + (x.r.k === cakeK && last() ? '<span class="cake">🍰 Skal bage kage lige nu</span>' : '') +
       '</article>';
   }).join('');
-}
-
-// Temporary team mode: S.teams = [["anna", "mathias"], ["ida"]]. A team's score is the sum of its members' km since 25/9.
-// Without S.teams it's everyone for themselves.
-function teamStandings(){
-  if (!S.teams || sport !== 'run') return null;
-  var by = {};
-  standings('comp').forEach(function(x){ by[x.r.k] = x; });
-  return S.teams.map(function(ks){
-    var m = ks.map(function(k){ return by[k]; }).filter(Boolean);
-    return {ks:ks, name: m.map(function(x){ return x.r.name; }).join(' og '), v: m.reduce(function(s, x){ return s + x.v; }, 0)};
-  }).sort(function(a, b){ return b.v - a.v; });
-}
-
-// Who bakes right now: the last runner, or everyone on the last team.
-function cakeKeys(){
-  if (sport !== 'run') return [];
-  var t = teamStandings();
-  if (t && t.length > 1) return t[t.length - 1].ks;
-  var c = standings('comp');
-  return [c[c.length - 1].r.k];
 }
 
 function stakes(){
   if (sport !== 'run') {
     return '<div class="stakes fun"><p><strong>Bare for sjov</strong></p><p>' + (sport === 'ride' ? 'Cykling' : 'Svømning') + ' tæller ikke med i kilometerkampen.</p></div>';
   }
-  var t = teamStandings(), days = totalDays - Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
-  if (t && t.length > 1 && last()) {
-    var tl = t[t.length - 1], tu = t[t.length - 2];
-    var tmsg = Date.now() > endT
-      ? esc(tl.name) + ' tabte og skylder kage til ' + t.slice(0, -1).map(function(x){ return esc(x.name); }).join(' og ') + '.'
-      : 'Lige nu er det <b>' + esc(tl.name) + '</b>, der skal bage. ' + fmt(tu.v - tl.v, 2) + ' km op til ' + esc(tu.name) + ' med ' + days + ' dage tilbage.';
-    var board = '<p class="teams">' + t.map(function(x){ return '<span><b>' + esc(x.name) + '</b> ' + fmt(x.v, 2) + ' km</span>'; }).join('<span class="vs">mod</span>') + '</p>';
-    return '<div class="stakes"><p><strong>Holdkamp · taberholdet giver kage 🍰</strong></p>' + board + '<p>' + tmsg + '</p></div>';
-  }
   var c = standings('comp'), n = c.length;
-  if (!last() || n < 2) return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p></div>';
+  if (!last() || n < 2) return '<div class="stakes"><p><strong>' + (S.teams ? 'Holdkamp · taberholdet giver kage 🍰' : 'Taberen giver kage 🍰') + '</strong></p></div>';
   var lo = c[n - 1], up = c[n - 2];
   var dayNo = Math.min(totalDays, Math.max(1, Math.floor((Date.now() - start) / DAY) + 1));
   var msg = Date.now() > endT
     ? esc(lo.r.name) + ' tabte og skylder kage til ' + c.slice(0, n - 1).map(function(x){ return esc(x.r.name); }).join(' og ') + '.'
     : 'Lige nu er det <b>' + esc(lo.r.name) + '</b>, der skal bage. ' + fmt(up.v - lo.v, 2) + ' km op til ' + esc(up.r.name) + ' med ' + (totalDays - dayNo) + ' dage tilbage.';
-  return '<div class="stakes"><p><strong>Taberen giver kage 🍰</strong></p><p>' + msg + '</p></div>';
+  return '<div class="stakes"><p><strong>' + (S.teams ? 'Holdkamp · taberholdet giver kage 🍰' : 'Taberen giver kage 🍰') + '</strong></p><p>' + msg + '</p></div>';
 }
 
 function niceStep(span){
@@ -321,7 +298,7 @@ function chart(st){
 
 function chartSection(title, withToggle){
   return '<section><div class="bar-row"><h2>' + title + '</h2>' + (withToggle ? viewToggle() : '') + '</div><div class="chart-box">' + chart(standings()) +
-    '<div class="legend">' + S.runners.map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
+    '<div class="legend">' + people().map(function(r){ return '<span style="--c:var(' + r.c + ')"><i></i>' + esc(r.name) + '</span>'; }).join('') +
     (view === 'proj' ? '<span><i class="dash"></i>Prognose til 31. dec</span>' : '') + '</div></div></section>';
 }
 
@@ -399,7 +376,7 @@ function render(){
     sportTabs() +
     stakes() +
     '<section aria-label="Stilling"><div class="bar-row"><h2>' + (mode === 'year' ? 'Hele 2026' : 'Stillingen') + '</h2>' + toggle() + '</div>' +
-    '<div class="bibs">' + bibs(st) + '</div></section>' +
+    '<div class="bibs" style="--cols:' + st.length + '">' + bibs(st) + '</div></section>' +
     chartSection(SPORTS[sport].chart, true) +
     (sport === 'ride' ? withM(METRICS.elev, function(){ return chartSection('Højdemeter', false); }) : '') +
     runList() +

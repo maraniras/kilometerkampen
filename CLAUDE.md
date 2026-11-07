@@ -14,7 +14,7 @@ Competition km = **the sum of each runner's individual runs since 25 Sep** (`run
 
 ### Team mode (temporary, since 7 Nov)
 
-While `data.json` has `"teams": [["anna", "mathias"], ["ida"]]`, the running competition is **Anna + Mathias vs Ida**: a team's score is the sum of its members' km since 25 Sep, and everyone on the losing team bakes. The page shows the team score in the cake box; cards, charts and lists stay per person. The user will switch back at some point: then just remove `teams` from `data.json` (nothing else changes). Don't remove it before the user asks.
+While `data.json` has `"teams": [["anna", "mathias"], ["ida"]]`, the running competition is **Anna + Mathias vs Ida**: a team's score is the sum of its members' km since 25 Sep, and everyone on the losing team bakes. In the running tab each team is one competitor (one card, one chart line, so only a 1st and 2nd place); the run list and history stay per person. The user will switch back at some point: then just remove `teams` from `data.json` (nothing else changes). Don't remove it before the user asks.
 
 ### Cycling and swimming (just for fun)
 
