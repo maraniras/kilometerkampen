@@ -12,9 +12,9 @@ Competition km = **the sum of each runner's individual runs since 25 Sep** (`run
 
 `base`/`baseRuns` are the rounded 2026 totals on 25 Sep from the Strava app. They're only a fallback and a sanity check. Never change them unless the user asks.
 
-### Team mode (temporary, since 7 Nov)
+### Team mode (off since 22 Nov)
 
-While `data.json` has `"teams": [["anna", "mathias"], ["ida"]]`, the running competition is **Anna + Mathias vs Ida**: a team's score is the sum of its members' km since 25 Sep, and everyone on the losing team bakes. In the running tab each team is one competitor (one card, one chart line, so only a 1st and 2nd place); the run list and history stay per person. The user will switch back at some point: then just remove `teams` from `data.json` (nothing else changes). Don't remove it before the user asks.
+Currently off: everyone runs for themselves. The page still supports teams: if the user asks for team mode again, add e.g. `"teams": [["anna", "mathias"], ["ida"]]` after `runners` in `data.json` (nothing else changes). Then a team's score is the sum of its members' km since 25 Sep and everyone on the losing team bakes; in the running tab each team is one competitor (one card, one chart line), while the run list and history stay per person. Remove `teams` again when the user wants it individual.
 
 ### Cycling and swimming (just for fun)
 
